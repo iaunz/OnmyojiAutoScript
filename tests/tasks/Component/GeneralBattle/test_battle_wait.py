@@ -10,8 +10,10 @@ from tasks.Component.GeneralBattle.battle_wait import (
 
 @pytest.fixture(autouse=True)
 def reset_battle_wait_plan(monkeypatch):
-    monkeypatch.setattr(battle_wait_strategy, 'battle_wait_plan', None)
     monkeypatch.setattr(battle_wait_strategy, 'options', None)
+    token = battle_wait_strategy._context.set(None)
+    yield
+    battle_wait_strategy._context.reset(token)
 
 
 def test_default_plan_contains_default_hooks_and_sequence():
@@ -50,13 +52,13 @@ def test_with_context_uses_a_temporary_plan_and_restores_the_default_plan():
     def battle_wait(owner, *, battle_wait_plan):
         return battle_wait_plan
 
-    default_plan = battle_wait_strategy.battle_wait_plan
+    default_plan = strategy.battle_wait_plan
 
     with battle_wait_strategy('success_default', failure='custom'):
         temporary_plan = battle_wait(object())
         assert temporary_plan.failure == 'custom'
 
-    assert battle_wait_strategy.battle_wait_plan is default_plan
+    assert battle_wait_strategy._context.get() is None
     assert battle_wait(object()) is default_plan
 
 
@@ -69,6 +71,71 @@ def test_event_and_strategy_can_be_configured_with_both_supported_forms():
         '_bw_yyy_default',
         '_bw_abcd_edf',
     ]
+
+
+@pytest.mark.parametrize('strategies', [('default', 'activity'), ('activity', 'default')])
+@pytest.mark.parametrize('random_click', [False, True])
+def test_task_strategies_are_independent_of_decoration_order(strategies, random_click):
+    def wait(owner, *, battle_wait_plan):
+        return battle_wait_plan
+
+    tasks = {
+        name: battle_wait_strategy(success=name)(wait)
+        for name in strategies
+    }
+
+    for name, wait in tasks.items():
+        plan = wait(object(), random_click_swipt_enable=random_click)
+        assert plan.success == name
+        assert hasattr(plan, 'randomclick') is random_click
+
+    # A later call must still use the task's own strategy.
+    for name, wait in tasks.items():
+        assert wait(object()).success == name
+
+
+def test_activity_reward_is_collected_after_another_task_is_decorated(monkeypatch):
+    from types import SimpleNamespace
+
+    @battle_wait_strategy()
+    def ordinary_wait(owner, *, battle_wait_plan):
+        return battle_wait_plan
+
+    class ActivityBattle(BattleWait):
+        def __init__(self):
+            self.reward_visible = True
+            self.frames = 0
+            self.clicks = []
+            self.device = SimpleNamespace(
+                stuck_record_add=lambda name: None,
+                click_record_clear=lambda: None,
+            )
+
+        def screenshot(self):
+            self.frames += 1
+            assert self.frames < 10, 'Activity reward was not collected'
+
+        def appear(self, asset, **kwargs):
+            return asset is self.I_UI_REWARD and self.reward_visible
+
+        def appear_then_click(self, asset, **kwargs):
+            return False
+
+        def click(self, asset, **kwargs):
+            self.clicks.append(asset.name)
+            self.reward_visible = False
+
+        @battle_wait_strategy(success='activity')
+        def battle_wait(self, *args, **kwargs):
+            return self.battle_wait_with_strategy(*args, **kwargs)
+
+    # Keep the replay on the normal dismissal path, without random item inspection.
+    monkeypatch.setattr('tasks.Component.GeneralBattle.battle_wait.random.random', lambda: 1)
+    task = ActivityBattle()
+
+    assert task.battle_wait(random_click_swipt_enable=False) is True
+    assert task.clicks == ['exclude_click_activity']
+    assert ordinary_wait(object()).success == 'default'
 
 
 def test_an_event_cannot_be_configured_with_two_strategies():
@@ -90,6 +157,7 @@ def test_setup_runs_before_the_wait_loop():
 
         def _bw_completion_finish(self, bw_ctx):
             self.events.append('completion')
+            bw_ctx.success = True
             return HookSignal.DONE
 
     battle_wait = OrderedBattleWait()
@@ -117,6 +185,7 @@ def test_custom_hook_is_resolved_and_executed_in_the_configured_sequence():
 
         def _bw_completion_finish(self, bw_ctx):
             self.events.append('completion')
+            bw_ctx.success = True
             return HookSignal.DONE
 
     battle_wait = CustomBattleWait()
@@ -160,14 +229,14 @@ def test_dynamic_override_does_not_modify_the_default_plan():
     def battle_wait(owner, *, battle_wait_plan):
         return battle_wait_plan
 
-    default_plan = battle_wait_strategy.battle_wait_plan
+    default_plan = strategy.battle_wait_plan
 
     overridden_plan = battle_wait(object(), random_click_swipt_enable=True)
 
     assert overridden_plan is not default_plan
     assert overridden_plan.randomclick == 'default'
     assert not hasattr(default_plan, 'randomclick')
-    assert battle_wait_strategy.battle_wait_plan is default_plan
+    assert strategy.battle_wait_plan is default_plan
 
 
 def test_dynamic_override_is_only_valid_for_the_current_call():
@@ -207,6 +276,7 @@ def test_decorator_options_and_with_options_are_scoped_to_the_current_call():
 
         def _bw_completion_record(self, bw_ctx):
             received_options.append(bw_ctx.options)
+            bw_ctx.success = True
             return HookSignal.DONE
 
         @strategy
@@ -231,3 +301,43 @@ def test_decorator_options_and_with_options_are_scoped_to_the_current_call():
     assert battle_wait.battle_wait() is True
     assert received_options[-1] == decorator_options
     assert 'C_REWARD_1' in str(strategy)
+
+
+def test_nested_context_restores_each_task_strategy_even_after_an_exception():
+    def wait(owner, *, battle_wait_plan, options=None):
+        return battle_wait_plan.success, options
+
+    ordinary_wait = battle_wait_strategy()(wait)
+    activity_wait = battle_wait_strategy(success='activity')(wait)
+    outer = battle_wait_strategy(success='outer', options={'success': {'source': 'outer'}})
+    inner = battle_wait_strategy(success='inner', options={'success': {'source': 'inner'}})
+
+    # Merely constructing temporary strategies must not change existing tasks.
+    assert ordinary_wait(object()) == ('default', None)
+    assert activity_wait(object()) == ('activity', None)
+    with outer:
+        assert activity_wait(object()) == ('outer', {'success': {'source': 'outer'}})
+        with pytest.raises(RuntimeError, match='interrupted'):
+            with inner:
+                assert ordinary_wait(object()) == ('inner', {'success': {'source': 'inner'}})
+                raise RuntimeError('interrupted')
+        assert activity_wait(object()) == ('outer', {'success': {'source': 'outer'}})
+
+    assert ordinary_wait(object()) == ('default', None)
+    assert activity_wait(object()) == ('activity', None)
+
+
+def test_decorator_options_do_not_leak_between_tasks_or_calls():
+    def wait(owner, *, battle_wait_plan, options):
+        return options
+
+    ordinary_options = {'success': {'excludes': ['C_REWARD_1']}}
+    activity_options = {'success': {'excludes': ['C_END_ACTIVITY_REWARD']}}
+    ordinary_wait = battle_wait_strategy(options=ordinary_options)(wait)
+    activity_wait = battle_wait_strategy(success='activity', options=activity_options)(wait)
+
+    assert ordinary_wait(object()) == ordinary_options
+    assert activity_wait(object()) == activity_options
+    ordinary_wait(object())['success']['excludes'].clear()
+    assert ordinary_wait(object()) == ordinary_options
+    assert activity_wait(object()) == activity_options

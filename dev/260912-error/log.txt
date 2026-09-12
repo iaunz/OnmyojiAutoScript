@@ -1,0 +1,92 @@
+════════════════════════════════════════════════════════════════════════════════
+────────────────────────────── ACTIVITYSHIKIGAMI ───────────────────────────────
+════════════════════════════════════════════════════════════════════════════════
+2026-09-12 12:55:45.424 |      config_model.py:0176 |     INFO | auto save config                                                                               
+2026-09-12 12:55:45.651 |            script.py:0565 |     INFO | module_path: C:\tools\OAS\tasks\ActivityShikigami\script_task.py, module_name: script_task     
+2026-09-12 12:55:45.676 |           game_ui.py:0102 |     INFO | UI get current page                                                                            
+2026-09-12 12:55:45.681 |            logger.py:0320 |     INFO | [UI] page_main                                                                                 
+2026-09-12 12:55:45.683 |            logger.py:0312 |     INFO | <<< UI GOTO PAGE_CLIMB_ACT >>>                                                                 
+2026-09-12 12:55:45.685 |           game_ui.py:0229 |     INFO | Current page: page_main. Following shortest path:                                              
+2026-09-12 12:55:45.687 |           game_ui.py:0231 |     INFO | page_main -> page_climb_act                                                                    
+2026-09-12 12:55:47.458 |           game_ui.py:0276 |     INFO | Page switch: page_main -> page_climb_act                                                       
+2026-09-12 12:55:47.461 |           game_ui.py:0284 |     INFO | Wait appear and operate [AS_SHI, AS_TOGGLE_BUTTON] on page_main                                
+2026-09-12 12:55:47.762 |           control.py:0075 |     INFO | Click (1216,  474) @ AS_SHI                                                                    
+2026-09-12 12:55:48.663 |           control.py:0075 |     INFO | Click (1206,  541) @ AS_TOGGLE_BUTTON                                                          
+2026-09-12 12:55:53.477 |           game_ui.py:0302 |  WARNING | Failed recognize [AS_SHI, AS_TOGGLE_BUTTON] on page_main                                       
+2026-09-12 12:55:53.480 |           game_ui.py:0102 |     INFO | UI get current page                                                                            
+2026-09-12 12:55:53.799 |            logger.py:0320 |     INFO | [UI] page_climb_act                                                                            
+══════════════════════════ START RUN CLIMB TYPE PASS ═══════════════════════════
+2026-09-12 12:55:54.983 |            logger.py:0307 |     INFO | START RUN CLIMB TYPE PASS                                                                      
+2026-09-12 12:55:55.295 |           control.py:0075 |     INFO | Click ( 336,  212) @ AS_TO_BATTLE_MAIN                                                         
+2026-09-12 12:55:57.697 |           control.py:0075 |     INFO | Click ( 162,   99) @ AS_TO_BATTLE_MAIN_2                                                       
+2026-09-12 12:55:58.902 |           control.py:0075 |     INFO | Click (  98,  111) @ AS_TO_BATTLE_MAIN_2                                                       
+────────────────────────────── START SWITCH SOUL ───────────────────────────────
+2026-09-12 12:55:59.502 |            logger.py:0310 |     INFO | START SWITCH SOUL                                                                              
+2026-09-12 12:55:59.797 |           control.py:0075 |     INFO | Click (1038,  584) @ AS_BATTLE_MAIN_TO_RECORDS                                                 
+2026-09-12 12:56:01.000 |           control.py:0075 |     INFO | Click ( 394,   99) @ SS_SOUL_PRESET                                                            
+2026-09-12 12:56:01.305 |       switch_soul.py:0090 |     INFO | Click preset in switch soul                                                                    
+2026-09-12 12:56:01.731 |            logger.py:0320 |     INFO | [SS_GROUP_NAME 0.130s] ['默认分组', '御魂', '结界', '副本', '活动']                            
+2026-09-12 12:56:01.736 |           control.py:0159 |     INFO | Swipe (1224,  190) -> (1190,  330)                                                             
+2026-09-12 12:56:02.606 |            logger.py:0320 |     INFO | [SS_GROUP_NAME 0.124s] ['默认分组', '御魂', '结界', '副本', '活动']                            
+2026-09-12 12:56:02.610 |           control.py:0075 |     INFO | Click (1146,  387) @ sou_group_5                                                               
+2026-09-12 12:56:03.248 |           control.py:0075 |     INFO | Click (1119,  400) @ sou_group_5                                                               
+2026-09-12 12:56:04.716 |           control.py:0075 |     INFO | Click ( 985,  171) @ SS_SOU_SWITCH_1                                                           
+2026-09-12 12:56:05.701 |           control.py:0075 |     INFO | Click ( 772,  420) @ SS_SOU_SWITCH_SURE                                                        
+2026-09-12 12:56:06.819 |       switch_soul.py:0167 |  WARNING | Click team 1 failed in group 5                                                                 
+2026-09-12 12:56:07.117 |       switch_soul.py:0170 |     INFO | Switch soul_one group 5 team 1                                                                 
+2026-09-12 12:56:07.427 |           control.py:0075 |     INFO | Click (  41,   32) @ UI_UI_BACK_YELLOW                                                         
+2026-09-12 12:56:08.025 |       script_task.py:0326 |     INFO | Switch climb mode to pass                                                                      
+2026-09-12 12:56:08.324 |           control.py:0075 |     INFO | Click (1249,  560) @ AS_CLIMB_MODE_SWITCH                                                      
+2026-09-12 12:56:09.832 |            logger.py:0320 |     INFO | [FIRE 0.003s] [挑战]                                                                           
+2026-09-12 12:56:09.834 |       script_task.py:0335 |     INFO | Lock pass team                                                                                 
+2026-09-12 12:56:10.135 |            logger.py:0312 |     INFO | <<< CHECK PASS TICKETS >>>                                                                     
+2026-09-12 12:56:10.433 |            logger.py:0320 |     INFO | [FIRE 0.003s] [挑战]                                                                           
+2026-09-12 12:56:10.731 |           sub_ocr.py:0122 |  WARNING | OCR REMAIN_PASS: Result "" is revised to "0"                                                   
+2026-09-12 12:56:10.734 |            logger.py:0320 |     INFO | [REMAIN_PASS 0.005s] [0]                                                                       
+2026-09-12 12:56:10.736 |       script_task.py:0207 |  WARNING | No tickets left, wait for next time                                                            
+2026-09-12 12:56:11.035 |           control.py:0075 |     INFO | Click (  43,   42) @ UI_UI_BACK_YELLOW                                                         
+2026-09-12 12:56:15.552 |           control.py:0075 |     INFO | Click (  48,   52) @ UI_UI_BACK_YELLOW                                                         
+────────────────────────────── CLIMB SWITCH TO AP ──────────────────────────────
+2026-09-12 12:56:18.265 |            logger.py:0310 |     INFO | CLIMB SWITCH TO AP                                                                             
+2026-09-12 12:56:18.277 |           game_ui.py:0102 |     INFO | UI get current page                                                                            
+2026-09-12 12:56:18.300 |            logger.py:0320 |     INFO | [UI] page_climb_act                                                                            
+2026-09-12 12:56:18.304 |            logger.py:0312 |     INFO | <<< UI GOTO PAGE_CLIMB_ACT >>>                                                                 
+2026-09-12 12:56:18.306 |           game_ui.py:0229 |     INFO | Current page: page_climb_act. Following shortest path:                                         
+2026-09-12 12:56:18.308 |           game_ui.py:0231 |     INFO | page_climb_act                                                                                 
+2026-09-12 12:56:19.473 |           game_ui.py:0273 |     INFO | Page arrived page_climb_act                                                                    
+2026-09-12 12:56:19.476 |            logger.py:0312 |     INFO | <<< START RUN CLIMB TYPE AP >>>                                                                
+2026-09-12 12:56:19.772 |           control.py:0075 |     INFO | Click ( 347,  253) @ AS_TO_BATTLE_MAIN                                                         
+2026-09-12 12:56:22.175 |           control.py:0075 |     INFO | Click ( 204,  112) @ AS_TO_BATTLE_MAIN_2                                                       
+2026-09-12 12:56:23.383 |           control.py:0075 |     INFO | Click ( 131,  108) @ AS_TO_BATTLE_MAIN_2                                                       
+────────────────────────────── START SWITCH SOUL ───────────────────────────────
+2026-09-12 12:56:23.983 |            logger.py:0310 |     INFO | START SWITCH SOUL                                                                              
+2026-09-12 12:56:24.278 |           control.py:0075 |     INFO | Click (1027,  584) @ AS_BATTLE_MAIN_TO_RECORDS                                                 
+2026-09-12 12:56:25.485 |           control.py:0075 |     INFO | Click ( 377,   84) @ SS_SOUL_PRESET                                                            
+2026-09-12 12:56:25.780 |       switch_soul.py:0090 |     INFO | Click preset in switch soul                                                                    
+2026-09-12 12:56:26.202 |            logger.py:0320 |     INFO | [SS_GROUP_NAME 0.120s] ['默认分组', '御魂', '结界', '副本', '活动']                            
+2026-09-12 12:56:26.215 |           control.py:0159 |     INFO | Swipe (1218,  191) -> (1210,  336)                                                             
+2026-09-12 12:56:27.092 |            logger.py:0320 |     INFO | [SS_GROUP_NAME 0.131s] ['默认分组', '御魂', '结界', '副本', '活动']                            
+2026-09-12 12:56:27.097 |           control.py:0075 |     INFO | Click (1200,  383) @ sou_group_5                                                               
+2026-09-12 12:56:27.740 |           control.py:0075 |     INFO | Click (1165,  373) @ sou_group_5                                                               
+2026-09-12 12:56:29.195 |           control.py:0075 |     INFO | Click ( 984,  162) @ SS_SOU_SWITCH_1                                                           
+2026-09-12 12:56:30.162 |       switch_soul.py:0167 |  WARNING | Click team 1 failed in group 5                                                                 
+2026-09-12 12:56:30.977 |       switch_soul.py:0167 |  WARNING | Click team 1 failed in group 5                                                                 
+2026-09-12 12:56:31.286 |       switch_soul.py:0170 |     INFO | Switch soul_one group 5 team 1                                                                 
+2026-09-12 12:56:31.579 |           control.py:0075 |     INFO | Click (  41,   36) @ UI_UI_BACK_YELLOW                                                         
+2026-09-12 12:56:32.179 |       script_task.py:0326 |     INFO | Switch climb mode to ap                                                                        
+2026-09-12 12:56:32.481 |           control.py:0075 |     INFO | Click (1253,  555) @ AS_CLIMB_MODE_SWITCH                                                      
+2026-09-12 12:56:33.985 |            logger.py:0320 |     INFO | [FIRE 0.003s] [挑战]                                                                           
+2026-09-12 12:56:33.988 |       script_task.py:0335 |     INFO | Lock ap team                                                                                   
+2026-09-12 12:56:34.289 |            logger.py:0312 |     INFO | <<< CHECK AP TICKETS >>>                                                                       
+2026-09-12 12:56:34.588 |            logger.py:0320 |     INFO | [FIRE 0.003s] [挑战]                                                                           
+2026-09-12 12:56:34.889 |            logger.py:0320 |     INFO | [REMAIN_AP 0.003s] [2584]                                                                      
+2026-09-12 12:56:35.195 |            logger.py:0320 |     INFO | [FIRE 0.002s] [挑战]                                                                           
+2026-09-12 12:56:35.198 |           control.py:0075 |     INFO | Click (1145,  632) @ FIRE                                                                      
+2026-09-12 12:56:35.338 |       script_task.py:0295 |     INFO | Try click fire, remain times[7]                                                                
+───────────────────────────── GENERAL BATTLE START ─────────────────────────────
+2026-09-12 12:56:36.693 |            logger.py:0310 |     INFO | GENERAL BATTLE START                                                                           
+2026-09-12 12:56:36.695 |    general_battle.py:0039 |     INFO | Current count: 1                                                                               
+2026-09-12 12:56:36.993 |           control.py:0075 |     INFO | Click (1184,  579) @ GB_PREPARE_HIGHLIGHT                                                      
+2026-09-12 12:56:37.895 |           control.py:0075 |     INFO | Click (1177,  576) @ GB_PREPARE_HIGHLIGHT                                                      
+2026-09-12 12:56:38.225 |            device.py:0134 |     INFO | Add stuck record: BATTLE_STATUS_S                                                              
+2026-09-12 12:56:38.229 |       battle_wait.py:0353 |     INFO | Start battle process                                                                           

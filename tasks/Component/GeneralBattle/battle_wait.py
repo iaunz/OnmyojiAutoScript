@@ -4,6 +4,7 @@ import copy
 
 
 from functools import wraps
+from contextvars import ContextVar
 from dataclasses import dataclass
 from typing import TypeVar, ParamSpec, Callable
 from enum import Enum, auto
@@ -191,10 +192,9 @@ class BattleWaitPlan:
 
 class battle_wait_strategy:
     """
-    使用with 上下文临时修改  battle_wait_plan
-    首次装饰 func 初始化 battle_wait_plan
+    每个装饰器保存自己的 battle_wait_plan，使用 with 上下文临时覆盖。
     """
-    battle_wait_plan: BattleWaitPlan = None
+    _context = ContextVar('battle_wait_strategy_context', default=None)
     options: dict[str: dict] = {
         'success': {
             'reward_exclude_click_1': ['C_END_MESSAGE_RIGHT_TOP', 'C_END_BUFF_AREA_1', 'C_END_BUFF_AREA_2', 'C_END_SOUL_RECORD', 'C_END_SOUL_DETAILS',],
@@ -206,58 +206,36 @@ class battle_wait_strategy:
 
 
     def __init__(self, *arg, **kwargs):
-        self._temp_options = kwargs.pop('options', None)
-        if self._temp_options is not None:
-            if not isinstance(self._temp_options, dict):
-                raise TypeError(f'temp_options must be a dict, got {self._temp_options!r}')
-            for key, value in self._temp_options.items():
-                if not isinstance(key, str):
-                    raise
-                if not isinstance(value, dict):
-                    raise TypeError(f'temp_options must be a dict, got {self._temp_options!r}')
-            battle_wait_strategy.options.update(self._temp_options)
-
-        self._temp_battle_wait_plan = None
-        if battle_wait_strategy.battle_wait_plan is None:
-            # 首次装饰 func 初始化 battle_wait_plan
-            battle_wait_strategy.battle_wait_plan = BattleWaitPlan(*arg, **kwargs)  # pylint: disable=unused-argument
-        elif self._temp_battle_wait_plan is None:
-            # 使用 with 上下文临时修改 battle_wait_plan
-            self._temp_battle_wait_plan = BattleWaitPlan(*arg, **kwargs)
+        options = kwargs.pop('options', None)
+        self.options = copy.deepcopy(type(self).options or {})
+        if options is not None:
+            self._validate_options(options)
+            self.options.update(copy.deepcopy(options))
+        self.battle_wait_plan = BattleWaitPlan(*arg, **kwargs)
+        self._temp_options = None
+        self._context_tokens = []
 
     def __enter__(self):
-        self._previous_plan = battle_wait_strategy.battle_wait_plan
-
-        if self._temp_battle_wait_plan is not None:
-            battle_wait_strategy.battle_wait_plan = self._temp_battle_wait_plan
+        options = copy.deepcopy(self.options)
+        options.update(copy.deepcopy(self._temp_options or {}))
+        token = self._context.set((self.battle_wait_plan, options))
+        self._context_tokens.append(token)
         return self
 
     def __exit__(self, *exc):
-        battle_wait_strategy.battle_wait_plan = self._previous_plan
+        self._context.reset(self._context_tokens.pop())
         self._temp_options = None
         return False
 
     def __str__(self):
-        temp_plan = getattr(self, '_temp_battle_wait_plan', None)
-        default_plan = getattr(self, 'battle_wait_plan', None)
-        options = dict(battle_wait_strategy.options or {})
+        options = dict(self.options)
         options.update(self._temp_options or {})
-
-        if temp_plan is not None:
-            plan = temp_plan
-            scope = 'temporary'
-        else:
-            plan = default_plan
-            scope = 'decorator'
-
-        if plan is None:
-            return f'{type(self).__name__}(options={options}, plan=None)'
-
+        scope = 'temporary' if self._context_tokens else 'decorator'
         return (
             f'{type(self).__name__}('
             f'scope={scope}, '
             f'options={options}, '
-            f'plan=\n{plan}'
+            f'plan=\n{self.battle_wait_plan}'
             f')'
         )
     def __repr__(self):
@@ -270,46 +248,33 @@ class battle_wait_strategy:
     def __call__(self, func: Callable[P, T]) -> Callable[P, T]:
         @wraps(func)
         def inner(owner, *args: P.args, **kwargs: P.kwargs) -> T:
+            current_plan = self.battle_wait_plan
+            options = copy.deepcopy(self.options)
+            context = self._context.get()
+            if context is not None:
+                current_plan, context_options = context
+                options.update(copy.deepcopy(context_options))
             # 兼容性处理
-            #-----------------------------------------------------------------------
-            if kwargs:
-                override_kwargs = {}
-                override_args = list()
-                for key, value in kwargs.items():
-                    if key == 'random_click_swipt_enable' and value:
-                        override_kwargs['randomclick'] = 'default'
-                        override_args.append('randomclick_default')
-                current_plan = copy.deepcopy(battle_wait_strategy.battle_wait_plan)
-                current_plan = current_plan.override(*override_args)
-            else:
-                current_plan = battle_wait_strategy.battle_wait_plan
-            # -----------------------------------------------------------------------
-            # kwargs.setdefault(
-            #     'battle_wait_plan',
-            #     self.battle_wait_plan,
-            # )
-            options = dict(battle_wait_strategy.options or {})
-            options.update(self._temp_options or {})
+            if kwargs.get('random_click_swipt_enable'):
+                current_plan = copy.deepcopy(current_plan)
+                current_plan.override('randomclick_default')
             return func(owner, battle_wait_plan=current_plan, options=options) \
                 if options else func(owner, battle_wait_plan=current_plan)
 
         return inner
 
     def with_options(self, options: dict) -> "battle_wait_strategy":
-        if not isinstance(options, dict):
-            raise
-        for event, v in options.items():
-            if not isinstance(event, str):
-                raise TypeError()
-            if not isinstance(v, dict):
-                raise TypeError()
-        # 先装饰器, 后临时变量
-        if battle_wait_strategy.options is None:
-            battle_wait_strategy.options = options
-            self._temp_options = None
-        else:
-            self._temp_options = options
+        self._validate_options(options)
+        self._temp_options = copy.deepcopy(options)
         return self
+
+    @staticmethod
+    def _validate_options(options: dict) -> None:
+        if not isinstance(options, dict):
+            raise TypeError(f'options must be a dict, got {options!r}')
+        for event, v in options.items():
+            if not isinstance(event, str) or not isinstance(v, dict):
+                raise TypeError('options must map event names to dicts')
 
 
 class BattleWait(BaseTask, GeneralBattleAssets):
