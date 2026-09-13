@@ -48,6 +48,8 @@ CLAUDE.md
 .codex/
 .claude/
 openspec/
+/dev/
+/memory/
 
 
 # Created by .ignore support plugin (hsz.mobi)

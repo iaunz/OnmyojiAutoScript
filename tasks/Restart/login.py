@@ -30,6 +30,9 @@ class LoginHandler(BaseTask, RestartAssets, GameUiAssets, GeneralBuffAssets):
 
         confirm_timer = Timer(1.5, count=2).start()
         orientation_timer = Timer(10)
+        # 两种“进入游戏”OCR 共用点击间隔；等待期间继续截图处理页面变化。
+        enter_game_timer = Timer(3)
+        enter_game_attempts = 0
         login_success = False
 
         while 1:
@@ -130,6 +133,7 @@ class LoginHandler(BaseTask, RestartAssets, GameUiAssets, GeneralBuffAssets):
                 logger.info('误入区服设置')
                 # https://github.com/runhey/OnmyojiAutoScript/issues/585
                 self.device.click(x=106, y=535)
+                continue
                 
             # 点击’进入游戏‘
             if not self.appear(self.I_LOGIN_8):
@@ -140,8 +144,17 @@ class LoginHandler(BaseTask, RestartAssets, GameUiAssets, GeneralBuffAssets):
                 if self.appear_then_click(self.I_EARLY_SERVER_CANCEL):
                     logger.info('Cancel switch from early server to normal server')
                     continue
-            if self.ocr_appear_click(self.O_LOGIN_ENTER_GAME_ORIGIN, interval=3) or self.ocr_appear_click(self.O_LOGIN_ENTER_GAME, interval=3):
-                self.wait_until_appear(self.I_LOGIN_SPECIFIC_SERVE, True, wait_time=5)
+            if not enter_game_timer.reached():
+                continue
+            if self.ocr_appear_click(self.O_LOGIN_ENTER_GAME_ORIGIN) \
+                    or self.ocr_appear_click(self.O_LOGIN_ENTER_GAME):
+                enter_game_attempts += 1
+                enter_game_timer.reset()
+                if enter_game_attempts > 1:
+                    logger.warning(f'Still on login screen, retry enter game (attempt {enter_game_attempts})')
+                else:
+                    logger.info('Click enter game; checking the next screenshot')
+                # 回到主循环检查新截图：仍在登录页则重试，角色选择、庭院或弹窗由对应分支处理。
                 continue
 
         return login_success
