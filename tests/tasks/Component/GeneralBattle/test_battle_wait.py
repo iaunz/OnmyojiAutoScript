@@ -1,45 +1,63 @@
+from contextvars import copy_context
+from types import SimpleNamespace
+
 import pytest
 
 from tasks.Component.GeneralBattle.battle_wait import (
+    BattleResult,
     BattleWait,
     BattleWaitPlan,
     HookSignal,
+    OptionCompletionDefault,
+    OptionPrepareDefault,
+    OptionSetupDefault,
+    OptionSuccessDefault,
+    PerBattlePrepare,
+    PerBattleState,
+    PerTaskPreset,
+    PerTaskState,
+    battle_wait_options,
     battle_wait_strategy,
+    runtime,
+    _OPTION_CLASSES,
 )
 
 
 @pytest.fixture(autouse=True)
 def reset_battle_wait_plan(monkeypatch):
-    monkeypatch.setattr(battle_wait_strategy, 'options', None)
-    token = battle_wait_strategy._context.set(None)
+    monkeypatch.setattr(battle_wait_options, 'options', {
+        event: cls() for event, cls in _OPTION_CLASSES.items()
+    })
+    monkeypatch.setattr(runtime, 'task_owner', None)
+    monkeypatch.setattr(runtime, 'pub_ctx', None)
+    monkeypatch.setattr(runtime, 'pri_ctx', {})
+    contexts = (
+        battle_wait_strategy._context,
+        battle_wait_options._context,
+        battle_wait_options._decorator_options,
+    )
+    tokens = [context.set(None) for context in contexts]
     yield
-    battle_wait_strategy._context.reset(token)
+    for context, token in zip(contexts, tokens):
+        context.reset(token)
+
+
+def capture(owner, *, battle_wait_plan, options):
+    return battle_wait_plan, options
 
 
 def test_default_plan_contains_default_hooks_and_sequence():
     plan = BattleWaitPlan()
-
-    assert tuple(getattr(plan, hook) for hook in BattleWaitPlan.HOOKS_DEFAULT) == (
-        'default',
-        'default',
-        'default',
-        'default',
-        'default',
-        'default',
+    assert all(getattr(plan, hook) == 'default' for hook in plan.HOOKS_DEFAULT)
+    assert plan.sequence == (
+        'completion>interrupt>prepare>preset>green>red>echo>success>failure>idle'
     )
-    assert plan.sequence == 'completion>interrupt>success>failure>idle'
     assert plan.function_setup_name == '_bw_setup_default'
 
 
 def test_decorator_passes_its_plan_to_the_wrapped_function():
     strategy = battle_wait_strategy('reserve_default', 'idle_default', failure='custom')
-
-    @strategy
-    def battle_wait(owner, *, battle_wait_plan):
-        return battle_wait_plan
-
-    plan = battle_wait(object())
-
+    plan, _ = strategy(capture)(object())
     assert plan.reserve == 'default'
     assert plan.idle == 'default'
     assert plan.failure == 'custom'
@@ -47,59 +65,204 @@ def test_decorator_passes_its_plan_to_the_wrapped_function():
 
 def test_with_context_uses_a_temporary_plan_and_restores_the_default_plan():
     strategy = battle_wait_strategy('success_default')
-
-    @strategy
-    def battle_wait(owner, *, battle_wait_plan):
-        return battle_wait_plan
-
-    default_plan = strategy.battle_wait_plan
-
+    wait = strategy(capture)
     with battle_wait_strategy('success_default', failure='custom'):
-        temporary_plan = battle_wait(object())
-        assert temporary_plan.failure == 'custom'
-
+        assert wait(object())[0].failure == 'custom'
     assert battle_wait_strategy._context.get() is None
-    assert battle_wait(object()) is default_plan
-
-
-def test_event_and_strategy_can_be_configured_with_both_supported_forms():
-    plan = BattleWaitPlan('yyy_default', abcd='edf')
-
-    assert plan.yyy == 'default'
-    assert plan.abcd == 'edf'
-    assert plan.sequence_function_names()[4:6] == [
-        '_bw_yyy_default',
-        '_bw_abcd_edf',
-    ]
+    assert wait(object())[0] is strategy.battle_wait_plan
 
 
 @pytest.mark.parametrize('strategies', [('default', 'activity'), ('activity', 'default')])
 @pytest.mark.parametrize('random_click', [False, True])
 def test_task_strategies_are_independent_of_decoration_order(strategies, random_click):
-    def wait(owner, *, battle_wait_plan):
-        return battle_wait_plan
-
-    tasks = {
-        name: battle_wait_strategy(success=name)(wait)
-        for name in strategies
-    }
-
+    tasks = {name: battle_wait_strategy(success=name)(capture) for name in strategies}
     for name, wait in tasks.items():
-        plan = wait(object(), random_click_swipt_enable=random_click)
+        plan, _ = wait(object(), random_click_swipt_enable=random_click)
         assert plan.success == name
         assert hasattr(plan, 'randomclick') is random_click
-
-    # A later call must still use the task's own strategy.
     for name, wait in tasks.items():
-        assert wait(object()).success == name
+        assert wait(object())[0].success == name
+
+
+def test_event_and_strategy_can_be_configured_with_both_supported_forms():
+    plan = BattleWaitPlan('yyy_default', abcd='edf')
+    assert plan.yyy == 'default'
+    assert plan.abcd == 'edf'
+    assert plan.sequence_function_names()[-3:-1] == ['_bw_yyy_default', '_bw_abcd_edf']
+
+
+def test_an_event_cannot_be_configured_with_two_strategies():
+    with pytest.raises(ValueError, match='configured more than once'):
+        BattleWaitPlan('success_default', success='custom')
+
+
+def test_custom_sequence_controls_hook_order():
+    sequence = 'failure>yyy>completion>interrupt>prepare>preset>green>red>echo>success>idle'
+    plan = BattleWaitPlan('yyy_default', sequence=sequence)
+    assert plan.sequence_function_names() == [f'_bw_{event}_default' for event in sequence.split('>')]
+
+
+def test_custom_events_without_sequence_are_inserted_before_idle_in_argument_order():
+    plan = BattleWaitPlan('yyy_default', 'abcd_edf')
+    assert plan.sequence.endswith('failure>yyy>abcd>idle')
+
+
+def test_dynamic_override_is_only_valid_for_the_current_call():
+    strategy = battle_wait_strategy('success_default')
+    wait = strategy(capture)
+    overridden, options = wait(object(), random_click_swipt_enable=True)
+    assert overridden is not strategy.battle_wait_plan
+    assert overridden.randomclick == 'default'
+    assert 'randomclick' in options
+    assert not hasattr(strategy.battle_wait_plan, 'randomclick')
+    assert wait(object(), random_click_swipt_enable=False)[0] is strategy.battle_wait_plan
+
+
+def test_nested_context_restores_each_task_strategy_even_after_an_exception():
+    ordinary = battle_wait_strategy()(capture)
+    activity = battle_wait_strategy(success='activity')(capture)
+    outer = battle_wait_strategy(success='outer')
+    inner = battle_wait_strategy(success='inner')
+    assert ordinary(object())[0].success == 'default'
+    assert activity(object())[0].success == 'activity'
+    with outer:
+        assert activity(object())[0].success == 'outer'
+        with pytest.raises(RuntimeError, match='interrupted'):
+            with inner:
+                assert ordinary(object())[0].success == 'inner'
+                raise RuntimeError('interrupted')
+        assert activity(object())[0].success == 'outer'
+    assert ordinary(object())[0].success == 'default'
+    assert activity(object())[0].success == 'activity'
+
+
+def test_same_context_manager_can_be_nested_and_used_in_independent_contexts():
+    strategy = battle_wait_strategy(success='activity')
+    options = battle_wait_options(prepare={'lock_team': True})
+    wait = battle_wait_strategy()(capture)
+    first, second = copy_context(), copy_context()
+    first.run(strategy.__enter__)
+    second.run(strategy.__enter__)
+    first.run(options.__enter__)
+    second.run(options.__enter__)
+    first.run(options.__exit__, None, None, None)
+    first.run(strategy.__exit__, None, None, None)
+    assert first.run(wait, object())[0].success == 'default'
+    assert second.run(wait, object())[0].success == 'activity'
+    assert second.run(wait, object())[1]['prepare'].lock_team is True
+    second.run(options.__exit__, None, None, None)
+    second.run(strategy.__exit__, None, None, None)
+    with strategy, options:
+        with strategy, options:
+            assert wait(object())[0].success == 'activity'
+        assert wait(object())[1]['prepare'].lock_team is True
+    assert wait(object())[0].success == 'default'
+    assert wait(object())[1]['prepare'].lock_team is False
+
+
+def test_options_decorator_and_with_are_scoped_to_the_current_call():
+    wait = battle_wait_options(
+        success={'excludes_1': ['C_REWARD_1']}, prepare={'lock_team': True}
+    )(battle_wait_strategy()(capture))
+    assert wait(object())[1]['success'].excludes_1 == ['C_REWARD_1']
+    with battle_wait_options(success={'excludes_1': ['C_END_MESSAGE_RIGHT_TOP']}):
+        options = wait(object())[1]
+        assert options['success'].excludes_1 == ['C_END_MESSAGE_RIGHT_TOP']
+        assert options['prepare'].lock_team is True
+        with pytest.raises(RuntimeError):
+            with battle_wait_options(prepare={'lock_team': False}):
+                assert wait(object())[1]['prepare'].lock_team is False
+                raise RuntimeError('interrupted')
+        assert wait(object())[1]['prepare'].lock_team is True
+    assert wait(object())[1]['success'].excludes_1 == ['C_REWARD_1']
+    assert battle_wait_options._context.get() is None
+    assert battle_wait_options._decorator_options.get() is None
+
+
+def test_cross_task_options_do_not_leak_between_tasks_or_calls():
+    ordinary = battle_wait_options(success={'excludes_1': ['C_REWARD_1']})(
+        battle_wait_strategy()(capture)
+    )
+    activity = battle_wait_options(success={'excludes_1': ['C_END_ACTIVITY_REWARD']})(
+        battle_wait_strategy(success='activity')(capture)
+    )
+    assert ordinary(object())[0].success == 'default'
+    assert activity(object())[0].success == 'activity'
+    ordinary(object())[1]['success'].excludes_1.clear()
+    assert ordinary(object())[1]['success'].excludes_1 == ['C_REWARD_1']
+    assert activity(object())[1]['success'].excludes_1 == ['C_END_ACTIVITY_REWARD']
+    assert battle_wait_strategy()(capture)(object())[1]['success'] == OptionSuccessDefault()
+
+
+def test_options_decorator_restores_context_after_exception():
+    @battle_wait_options(prepare={'lock_team': True})
+    def fail(owner):
+        assert battle_wait_options.current()['prepare'].lock_team is True
+        raise RuntimeError('interrupted')
+
+    with battle_wait_options(success={'excludes_1': ['C_REWARD_1']}):
+        with pytest.raises(RuntimeError):
+            fail(object())
+        options = battle_wait_options.current()
+        assert options['prepare'].lock_team is False
+        assert options['success'].excludes_1 == ['C_REWARD_1']
+
+
+class ReplayBattle(BattleWait):
+    def __init__(self):
+        self.events = []
+        self.frames = 0
+
+    def screenshot(self):
+        self.frames += 1
+        assert self.frames < 5, 'battle did not complete'
+        self.events.append('screenshot')
+
+    def _bw_setup_record(self, pub, pri):
+        self.events.append('setup')
+        return HookSignal.DONE
+
+    def _bw_prepare_default(self, pub, pri):
+        return HookSignal.CONTINUE
+
+    def _bw_success_record(self, pub, pri):
+        self.events.append('success')
+        pub.per_battle.success = BattleResult.SUCCESS
+        return runtime.hook_enabled_update(enable=('completion',), disable=('success', 'failure'))
+
+    def _bw_completion_record(self, pub, pri):
+        self.events.append('completion')
+        return HookSignal.DONE
+
+    @battle_wait_strategy(setup='record', success='record', completion='record')
+    def battle_wait(self, *args, **kwargs):
+        return self.battle_wait_with_strategy(*args, **kwargs)
+
+
+def test_setup_runs_before_the_wait_loop_and_completion_waits_for_settlement():
+    battle = ReplayBattle()
+    assert battle.battle_wait() is True
+    assert battle.events == ['setup', 'screenshot', 'success', 'screenshot', 'completion']
+
+
+def test_custom_hook_is_resolved_and_executed_in_the_configured_sequence():
+    class CustomBattle(ReplayBattle):
+        def _bw_yyy_multi_word(self, pub, pri):
+            self.events.append('yyy')
+            pub.per_battle.success = BattleResult.SUCCESS
+            return runtime.hook_enabled_update(enable=('completion',), disable=())
+
+    battle = CustomBattle()
+    with battle_wait_strategy(
+        setup='record', success='record', completion='record', yyy='multi_word',
+        sequence='yyy>completion>interrupt>prepare>preset>green>red>echo>success>failure>idle',
+    ):
+        assert battle.battle_wait() is True
+    assert battle.events == ['setup', 'screenshot', 'yyy', 'completion']
 
 
 def test_activity_reward_is_collected_after_another_task_is_decorated(monkeypatch):
-    from types import SimpleNamespace
-
-    @battle_wait_strategy()
-    def ordinary_wait(owner, *, battle_wait_plan):
-        return battle_wait_plan
+    ordinary = battle_wait_strategy()(capture)
 
     class ActivityBattle(BattleWait):
         def __init__(self):
@@ -115,6 +278,9 @@ def test_activity_reward_is_collected_after_another_task_is_decorated(monkeypatc
             self.frames += 1
             assert self.frames < 10, 'Activity reward was not collected'
 
+        def is_in_real_battle(self, is_screenshot=False):
+            return False
+
         def appear(self, asset, **kwargs):
             return asset is self.I_UI_REWARD and self.reward_visible
 
@@ -129,215 +295,122 @@ def test_activity_reward_is_collected_after_another_task_is_decorated(monkeypatc
         def battle_wait(self, *args, **kwargs):
             return self.battle_wait_with_strategy(*args, **kwargs)
 
-    # Keep the replay on the normal dismissal path, without random item inspection.
     monkeypatch.setattr('tasks.Component.GeneralBattle.battle_wait.random.random', lambda: 1)
     task = ActivityBattle()
-
     assert task.battle_wait(random_click_swipt_enable=False) is True
     assert task.clicks == ['exclude_click_activity']
-    assert ordinary_wait(object()).success == 'default'
+    assert runtime.pub_ctx.per_task.count == 1
+    assert ordinary(object())[0].success == 'default'
 
 
-def test_an_event_cannot_be_configured_with_two_strategies():
-    with pytest.raises(ValueError, match="configured more than once"):
-        BattleWaitPlan('success_default', success='custom')
-
-
-def test_setup_runs_before_the_wait_loop():
-    class OrderedBattleWait(BattleWait):
+def _make_runtime_probe():
+    class RuntimeProbe(BattleWait):
         def __init__(self):
-            self.events = []
+            self.calls = []
 
-        def screenshot(self):
-            self.events.append('screenshot')
-
-        def _bw_setup_record(self, bw_ctx):
-            self.events.append('setup')
+        def _bw_setup_probe(self, pub, pri):
+            self.calls.append(('setup', pub, pri))
             return HookSignal.DONE
 
-        def _bw_completion_finish(self, bw_ctx):
-            self.events.append('completion')
-            bw_ctx.success = True
+        def _bw_completion_probe(self, pub, pri):
+            self.calls.append(('completion', pub, pri))
             return HookSignal.DONE
 
-    battle_wait = OrderedBattleWait()
-    plan = BattleWaitPlan('setup_record', 'completion_finish')
+        def _bw_success_probe(self, pub, pri):
+            self.calls.append(('success', pub, pri))
+            return HookSignal.DONE
 
-    assert battle_wait.battle_wait_with_strategy(battle_wait_plan=plan) is True
-    assert battle_wait.events == ['setup', 'screenshot', 'completion']
+    return RuntimeProbe()
 
 
-def test_custom_hook_is_resolved_and_executed_in_the_configured_sequence():
-    class CustomBattleWait(BattleWait):
+def test_runtime_injects_shared_pub_and_per_hook_pri():
+    battle = _make_runtime_probe()
+    battle._bw_setup_probe()
+    battle._bw_completion_probe()
+    _, setup_pub, setup_pri = battle.calls[0]
+    _, completion_pub, completion_pri = battle.calls[1]
+    assert setup_pub is completion_pub is runtime.pub_ctx
+    assert setup_pri is runtime.pri_ctx['_bw_setup_probe']
+    assert completion_pri is runtime.pri_ctx['_bw_completion_probe']
+    assert setup_pri is not completion_pri
+    assert battle._bw_completion_probe.__name__ == '_bw_completion_probe'
+
+
+def test_runtime_task_owner_switch_resets_per_task():
+    battle = _make_runtime_probe()
+    battle._bw_setup_probe()
+    runtime.pub_ctx.cross['keep'] = 1
+    runtime.pub_ctx.per_task.count = 4
+    runtime._ensure_pri_default('_bw_preset_default')
+    runtime.pri_ctx['_bw_preset_default'].per_task.done = True
+    _make_runtime_probe()._bw_setup_probe()
+    assert runtime.pub_ctx.cross == {'keep': 1}
+    assert runtime.pub_ctx.per_task == PerTaskState()
+    assert runtime.pri_ctx['_bw_preset_default'].per_task == PerTaskPreset()
+
+
+def test_runtime_reset_per_battle_keeps_cross_and_per_task():
+    battle = _make_runtime_probe()
+    battle._bw_setup_probe()
+    runtime.pub_ctx.cross['c'] = 1
+    runtime.pub_ctx.per_task.count = 2
+    runtime.pub_ctx.per_battle.success = BattleResult.SUCCESS
+    runtime._ensure_pri_default('_bw_prepare_default')
+    runtime.pri_ctx['_bw_prepare_default'].per_battle.done = True
+    runtime.reset_per_battle()
+    assert runtime.pub_ctx.cross == {'c': 1}
+    assert runtime.pub_ctx.per_task.count == 2
+    assert runtime.pub_ctx.per_battle == PerBattleState()
+    assert runtime.pri_ctx['_bw_prepare_default'].per_battle == PerBattlePrepare()
+
+
+def test_runtime_update_options_distributes_by_hook_event_name_and_resets_defaults():
+    plan = BattleWaitPlan(setup='probe', completion='probe', success='multi_word')
+    options = {
+        'setup': OptionSetupDefault(excludes=['C_REWARD_1']),
+        'completion': OptionCompletionDefault(excludes=['C_REWARD_2']),
+        'success': OptionSuccessDefault(excludes_1=['C_REWARD_3']),
+    }
+    runtime.update_options(options, plan=plan)
+    assert runtime.pub_ctx.options == options
+    for hook in ('_bw_setup_probe', '_bw_completion_probe', '_bw_success_multi_word'):
+        assert runtime.pri_ctx[hook].options is options[runtime.hook2event(hook)]
+    runtime.update_options({}, plan=plan)
+    assert runtime.pri_ctx['_bw_setup_probe'].options == OptionSetupDefault()
+    assert runtime.pri_ctx['_bw_success_multi_word'].options == OptionSuccessDefault()
+
+
+def test_runtime_str_shows_hook_name_and_state_fields():
+    battle = _make_runtime_probe()
+    battle._bw_setup_probe()
+    text = str(battle.__class__._bw_setup_probe)
+    assert '_bw_setup_probe' in text
+    assert 'count' in text
+    assert 'hook_enabled' in text
+
+
+@pytest.mark.parametrize('locked', [False, True])
+def test_prepare_dismisses_soul_mismatch_dialog_before_progressing(locked):
+    class PrepareBattle(BattleWait):
         def __init__(self):
-            self.events = []
+            self.visible = [self.I_DISABLE_7DAYS_DIFF_SOUL, self.I_CONFIRM_CLOSE_DIFF_SOUL]
+            self.clicked = []
 
-        def screenshot(self):
-            pass
+        def appear_then_click(self, target, **kwargs):
+            if self.visible and target is self.visible[0]:
+                self.clicked.append(target)
+                self.visible.pop(0)
+                return True
+            return False
 
-        def _bw_setup_record(self, bw_ctx):
-            self.events.append('setup')
-            return HookSignal.DONE
+        def is_in_real_battle(self, is_screenshot=False):
+            return True
 
-        def _bw_yyy_record(self, bw_ctx):
-            self.events.append('yyy')
-            return HookSignal.CONTINUE
-
-        def _bw_completion_finish(self, bw_ctx):
-            self.events.append('completion')
-            bw_ctx.success = True
-            return HookSignal.DONE
-
-    battle_wait = CustomBattleWait()
-    plan = BattleWaitPlan(
-        'setup_record',
-        'yyy_record',
-        'completion_finish',
-        sequence='yyy > completion > interrupt > success > failure > idle',
-    )
-
-    assert battle_wait.battle_wait_with_strategy(battle_wait_plan=plan) is True
-    assert battle_wait.events == ['setup', 'yyy', 'completion']
-
-
-def test_custom_sequence_controls_hook_order():
-    plan = BattleWaitPlan(
-        'yyy_default',
-        sequence='failure > yyy > completion > interrupt > success > idle',
-    )
-
-    assert plan.sequence_function_names() == [
-        '_bw_failure_default',
-        '_bw_yyy_default',
-        '_bw_completion_default',
-        '_bw_interrupt_default',
-        '_bw_success_default',
-        '_bw_idle_default',
-    ]
-
-
-def test_custom_events_without_sequence_are_inserted_before_idle_in_argument_order():
-    plan = BattleWaitPlan('yyy_default', 'abcd_edf')
-
-    assert plan.sequence == 'completion>interrupt>success>failure>yyy>abcd>idle'
-
-
-def test_dynamic_override_does_not_modify_the_default_plan():
-    strategy = battle_wait_strategy('success_default')
-
-    @strategy
-    def battle_wait(owner, *, battle_wait_plan):
-        return battle_wait_plan
-
-    default_plan = strategy.battle_wait_plan
-
-    overridden_plan = battle_wait(object(), random_click_swipt_enable=True)
-
-    assert overridden_plan is not default_plan
-    assert overridden_plan.randomclick == 'default'
-    assert not hasattr(default_plan, 'randomclick')
-    assert strategy.battle_wait_plan is default_plan
-
-
-def test_dynamic_override_is_only_valid_for_the_current_call():
-    strategy = battle_wait_strategy('success_default')
-
-    @strategy
-    def battle_wait(owner, *, battle_wait_plan):
-        return battle_wait_plan
-
-    battle_wait(object(), random_click_swipt_enable=True)
-    plan_without_override = battle_wait(object(), random_click_swipt_enable=False)
-
-    assert not hasattr(plan_without_override, 'randomclick')
-
-
-# 验证单层装饰器保存自己的 options，with_options() 只在上下文内临时覆盖，退出后恢复。
-def test_decorator_options_and_with_options_are_scoped_to_the_current_call():
-    received_options = []
-    decorator_options = {
-        'completion': {'source': 'decorator'},
-        'success': {'excludes': ['C_REWARD_1']},
-    }
-    context_options = {
-        'success': {'excludes': ['C_END_MESSAGE_RIGHT_TOP']},
-    }
-
-    strategy = battle_wait_strategy(
-        'setup_record', 'completion_record', options=decorator_options
-    )
-
-    class OptionBattleWait(BattleWait):
-        def screenshot(self):
-            pass
-
-        def _bw_setup_record(self, bw_ctx):
-            return HookSignal.DONE
-
-        def _bw_completion_record(self, bw_ctx):
-            received_options.append(bw_ctx.options)
-            bw_ctx.success = True
-            return HookSignal.DONE
-
-        @strategy
-        def battle_wait(self, *args, **kwargs):
-            return self.battle_wait_with_strategy(*args, **kwargs)
-
-    battle_wait = object.__new__(OptionBattleWait)
-
-    assert battle_wait.battle_wait() is True
-    assert received_options[-1] == decorator_options
-
-    with strategy.with_options(context_options):
-        assert battle_wait.battle_wait() is True
-        assert received_options[-1] == {
-            'completion': {'source': 'decorator'},
-            'success': {'excludes': ['C_END_MESSAGE_RIGHT_TOP']},
-        }
-        strategy_text = str(strategy)
-        assert 'options=' in strategy_text
-        assert 'C_END_MESSAGE_RIGHT_TOP' in strategy_text
-
-    assert battle_wait.battle_wait() is True
-    assert received_options[-1] == decorator_options
-    assert 'C_REWARD_1' in str(strategy)
-
-
-def test_nested_context_restores_each_task_strategy_even_after_an_exception():
-    def wait(owner, *, battle_wait_plan, options=None):
-        return battle_wait_plan.success, options
-
-    ordinary_wait = battle_wait_strategy()(wait)
-    activity_wait = battle_wait_strategy(success='activity')(wait)
-    outer = battle_wait_strategy(success='outer', options={'success': {'source': 'outer'}})
-    inner = battle_wait_strategy(success='inner', options={'success': {'source': 'inner'}})
-
-    # Merely constructing temporary strategies must not change existing tasks.
-    assert ordinary_wait(object()) == ('default', None)
-    assert activity_wait(object()) == ('activity', None)
-    with outer:
-        assert activity_wait(object()) == ('outer', {'success': {'source': 'outer'}})
-        with pytest.raises(RuntimeError, match='interrupted'):
-            with inner:
-                assert ordinary_wait(object()) == ('inner', {'success': {'source': 'inner'}})
-                raise RuntimeError('interrupted')
-        assert activity_wait(object()) == ('outer', {'success': {'source': 'outer'}})
-
-    assert ordinary_wait(object()) == ('default', None)
-    assert activity_wait(object()) == ('activity', None)
-
-
-def test_decorator_options_do_not_leak_between_tasks_or_calls():
-    def wait(owner, *, battle_wait_plan, options):
-        return options
-
-    ordinary_options = {'success': {'excludes': ['C_REWARD_1']}}
-    activity_options = {'success': {'excludes': ['C_END_ACTIVITY_REWARD']}}
-    ordinary_wait = battle_wait_strategy(options=ordinary_options)(wait)
-    activity_wait = battle_wait_strategy(success='activity', options=activity_options)(wait)
-
-    assert ordinary_wait(object()) == ordinary_options
-    assert activity_wait(object()) == activity_options
-    ordinary_wait(object())['success']['excludes'].clear()
-    assert ordinary_wait(object()) == ordinary_options
-    assert activity_wait(object()) == activity_options
+    battle = PrepareBattle()
+    runtime.update_options({'prepare': OptionPrepareDefault(lock_team=locked)}, BattleWaitPlan())
+    for _ in range(2):
+        assert battle._bw_prepare_default() == HookSignal.CONTINUE
+        assert runtime.pri_ctx['_bw_prepare_default'].per_battle.done is False
+    assert battle.clicked == [battle.I_DISABLE_7DAYS_DIFF_SOUL, battle.I_CONFIRM_CLOSE_DIFF_SOUL]
+    battle._bw_prepare_default()
+    assert runtime.pri_ctx['_bw_prepare_default'].per_battle.done is True
