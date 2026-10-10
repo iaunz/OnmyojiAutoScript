@@ -298,30 +298,46 @@ class ScriptTask(GeneralBattle, GameUi, SwitchSoul, RyouToppaAssets):
 
 
         rcl = area_map[index].get("rule_click")
-        # # 点击攻击区域，等待攻击按钮出现。
-        # self.ui_click(rcl, stop=RealmRaidAssets.I_FIRE, interval=2)
-        # 塔塔开！
-        click_failure_count = 0
+        area_click_count = 0
+        challenge_click_count = 0
+        retry_timer = Timer(2)
         while True:
             self.screenshot()
-            if click_failure_count >= 5:
-                logger.warning("Click failure, check your click position")
-                return False
+            # 最后一次点击仍可能进入战斗，优先检查，避免误跳过已经开始的战斗。
             if not self.appear(self.I_TOPPA_RECORD, threshold=0.85):
                 time.sleep(1)
                 self.screenshot()
                 if self.appear(self.I_TOPPA_RECORD, threshold=0.85):
                     continue
-                logger.info("Start attach area [%s]" % str(index + 1))
+                logger.info("Start attack area [%s]" % str(index + 1))
                 return self.run_general_battle(config=self.config.ryou_toppa.general_battle_config)
 
-            if self.appear_then_click(RealmRaidAssets.I_FIRE, interval=2, threshold=0.8):
-                click_failure_count += 1
+            fire_visible = self.appear(RealmRaidAssets.I_FIRE, threshold=0.8)
+            if challenge_click_count >= 5 or (area_click_count >= 5 and not fire_visible):
+                # 留出一个点击间隔等待切换，并关闭旧弹窗，确保下次选择的是新结界。
+                if not retry_timer.reached():
+                    continue
+                if fire_visible:
+                    self.click(self.C_SAFE_AREA, interval=1)
+                    continue
+                logger.warning(
+                    f'Area [{index + 1}] did not enter battle after '
+                    f'{challenge_click_count} challenge clicks and {area_click_count} area clicks, skip.'
+                )
+                self.device.click_record_clear()
+                return False
+
+            if fire_visible:
+                if self.click(RealmRaidAssets.I_FIRE, interval=2):
+                    challenge_click_count += 1
+                    retry_timer.reset()
+                # 挑战按钮冷却期间不重复点结界，避免收起弹窗。
                 continue
             if self.click(rcl, interval=5):
+                area_click_count += 1
+                retry_timer.reset()
                 # https://github.com/runhey/OnmyojiAutoScript/issues/1748
                 time.sleep(random.uniform(0, 0.3))
-                click_failure_count += 1
                 continue
 
     @battle_wait_strategy()
