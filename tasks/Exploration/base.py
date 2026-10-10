@@ -16,7 +16,8 @@ from tasks.Exploration.assets import ExplorationAssets
 from tasks.Exploration.config import ChooseRarity, AutoRotate, AttackNumber, UpType
 from tasks.Component.GeneralBattle.general_battle import GeneralBattle
 from tasks.GameUi.game_ui import GameUi
-from tasks.GameUi.page import page_exploration, page_shikigami_records, page_main
+from tasks.GameUi.page import page_shikigami_records, page_main
+import tasks.Exploration.page as pages
 from tasks.RealmRaid.script_task import ScriptTask as RealmRaidScriptTask
 from tasks.Utils.config_enum import ShikigamiClass
 
@@ -89,21 +90,18 @@ class BaseExploration(GameUi, GeneralBattle, GeneralRoom, GeneralInvite, Replace
     def pre_process(self):
         explorationConfig = self._config
         if explorationConfig.switch_soul_config.enable:
-            self.ui_get_current_page()
-            self.ui_goto(page_shikigami_records)
+            self.goto_page(page_shikigami_records)
             self.run_switch_soul(explorationConfig.switch_soul_config.switch_group_team)
 
         if explorationConfig.switch_soul_config.enable_switch_by_name:
-            self.ui_get_current_page()
-            self.ui_goto(page_shikigami_records)
+            self.goto_page(page_shikigami_records)
             self.run_switch_soul_by_name(explorationConfig.switch_soul_config.group_name,
                                          explorationConfig.switch_soul_config.team_name)
 
         # 开启加成
         con = self.config.exploration.exploration_config
         if con.buff_gold_50_click or con.buff_gold_100_click or con.buff_exp_50_click or con.buff_exp_100_click:
-            self.ui_get_current_page()
-            self.ui_goto(page_main)
+            self.goto_page(page_main)
             self.open_buff()
             if con.buff_gold_50_click:
                 self.gold_50()
@@ -115,16 +113,15 @@ class BaseExploration(GameUi, GeneralBattle, GeneralRoom, GeneralInvite, Replace
                 self.exp_100()
             self.close_buff()
 
-        self.ui_get_current_page()
-        # 探索页面
-        self.ui_goto(page_exploration)
+        # 探索页面（大地图始终处于主线/玩法 tab 之一，裸 page_exploration 永远被 prio 60 的 tab 页遮蔽、
+        # 无法作为当前页抵达，故直接进入主线 tab）
+        self.goto_page(pages.page_mainline)
 
     def post_process(self):
         self.wait_until_stable(self.I_UI_BACK_RED)
         if self.appear(self.I_UI_BACK_RED):
             self.ui_click_until_disappear(self.I_UI_BACK_RED)
-        self.ui_get_current_page()
-        self.ui_goto(page_main)
+        self.goto_page(page_main)
         con = self._config.exploration_config
         if con.buff_gold_50_click or con.buff_gold_100_click or con.buff_exp_50_click or con.buff_exp_100_click:
             self.open_buff()
@@ -138,6 +135,11 @@ class BaseExploration(GameUi, GeneralBattle, GeneralRoom, GeneralInvite, Replace
 
     # 打开指定的章节：
     def open_expect_level(self):
+        # 选关依赖主线 tab 右侧的章节列表（I_E_EXPLORATION_CLICK + 章节名 OCR）。
+        # 探索大地图常驻「主线/玩法」之一，若停在玩法 tab 不选回主线，右边会是御魂/今日掉落等模块名，
+        # I_E_EXPLORATION_CLICK 不出现、OCR 交集为空 → 一直滑屏卡死。故进选关前无条件确保主线 tab。
+        self.goto_page(pages.page_mainline)
+
         swipeCount = 0
         while 1:
             # 探索的 config
@@ -356,7 +358,7 @@ class BaseExploration(GameUi, GeneralBattle, GeneralRoom, GeneralInvite, Replace
             self.ui_click_until_disappear(self.I_UI_CANCEL)
         if self.appear(self.I_UI_CANCEL_SAMLL):
             self.ui_click_until_disappear(self.I_UI_CANCEL_SAMLL)
-        self.ui_goto(page_main)
+        self.goto_page(page_main)
         if con.buff_gold_50_click or con.buff_gold_100_click or con.buff_exp_50_click or con.buff_exp_100_click:
             self.open_buff()
             self.gold_50(is_open=False)

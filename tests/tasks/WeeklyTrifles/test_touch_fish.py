@@ -53,10 +53,7 @@ class StorageReplay(ScriptTask):
         )))
         self.set_next_run = Mock()
 
-    def ui_get_current_page(self):
-        pass
-
-    def ui_goto(self, page):
+    def goto_page(self, page):
         self.destinations.append(page)
         self.stage = page
         return True

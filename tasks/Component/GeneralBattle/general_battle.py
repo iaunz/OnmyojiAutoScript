@@ -3,16 +3,18 @@
 # github https://github.com/runhey
 import time
 import random
+import difflib
 from time import sleep
 
 import cv2
 from module.base.timer import Timer
+from module.config.utils import convert_to_underscore
 
 from module.base.utils import get_color, color_similar
 from tasks.base_task import BaseTask
-from tasks.Component.GeneralBattle.config_general_battle import GreenMarkType, GeneralBattleConfig
+from tasks.Component.GeneralBattle.config_general_battle import GreenMarkType, GreenMarkEnum, GeneralBattleConfig
 from tasks.Component.GeneralBattle.assets import GeneralBattleAssets
-from tasks.Component.GeneralBattle.config_general_battle import GreenMarkType, GeneralBattleConfig
+from tasks.Component.GeneralBattle.config_general_battle import GreenMarkType, GreenMarkEnum, GeneralBattleConfig
 from tasks.Component.GeneralBuff.config_buff import BuffClass
 from tasks.Component.GeneralBuff.general_buff import GeneralBuff
 from tasks.Component.GeneralBattle.battle_wait import BattleWait
@@ -41,7 +43,11 @@ class GeneralBattle(BattleWait, GeneralBuff):
         self.battle_before(buff, config)
         # 绿标
         if self.is_in_battle(False):
-            self.green_mark(config.green_enable, config.green_mark)
+            self.green_mark(
+                config.green_enable, config.green_mark,
+                green_mark_type=config.green_mark_type,
+                green_mark_name=config.green_mark_name,
+            )
         # 战中设置
         win = self.battle_wait(random_click_swipt_enable=config.random_click_swipt_enable)
         if win:
@@ -317,47 +323,78 @@ class GeneralBattle(BattleWait, GeneralBuff):
         """
         return False
 
-    def green_mark(self, enable: bool = False, mark_mode: GreenMarkType = GreenMarkType.GREEN_MAIN):
+    def green_mark(self, enable: bool = False, mark_mode: GreenMarkType = GreenMarkType.GREEN_MAIN,
+                   green_mark_type: GreenMarkEnum = GreenMarkEnum.CHOOSE, green_mark_name: str = ''):
         """
         绿标， 如果不使能就直接返回
         :param enable:
-        :param mark_mode:
+        :param mark_mode:绿标目标位置
+        :param green_mark_type: 按坐标还是按式神名点击
+        :param green_mark_name: 式神名，仅 green_mark_type 为 NAME 时生效
         :return:
         """
-        if enable:
-            logger.info("Green is enable")
-            x, y = None, None
-            match mark_mode:
-                case GreenMarkType.GREEN_LEFT1:
-                    x, y = self.C_GREEN_LEFT_1.coord()
-                    logger.info("Green left 1")
-                case GreenMarkType.GREEN_LEFT2:
-                    x, y = self.C_GREEN_LEFT_2.coord()
-                    logger.info("Green left 2")
-                case GreenMarkType.GREEN_LEFT3:
-                    x, y = self.C_GREEN_LEFT_3.coord()
-                    logger.info("Green left 3")
-                case GreenMarkType.GREEN_LEFT4:
-                    x, y = self.C_GREEN_LEFT_4.coord()
-                    logger.info("Green left 4")
-                case GreenMarkType.GREEN_LEFT5:
-                    x, y = self.C_GREEN_LEFT_5.coord()
-                    logger.info("Green left 5")
-                case GreenMarkType.GREEN_MAIN:
-                    x, y = self.C_GREEN_MAIN.coord()
-                    logger.info("Green main")
+        if not enable:
+            return
+        logger.info("Green is enable")
+        self.device.screenshot_interval_set()
+        match green_mark_type:
+            case GreenMarkEnum.CHOOSE:
+                self.green_mark_choose(mark_mode)
+            case GreenMarkEnum.NAME:
+                self.green_mark_name(green_mark_name)
+        self.device.screenshot_interval_set('combat')
 
-            # 等待那个准备的消失
-            while 1:
-                self.screenshot()
-                if not self.appear(self.I_PREPARE_HIGHLIGHT):
-                    break
-
-            # 判断有无坐标的偏移
-            self.appear_then_click(self.I_LOCAL)
+    def green_mark_choose(self, mark_mode: GreenMarkType = GreenMarkType.GREEN_MAIN):
+        x, y = None, None
+        match mark_mode:
+            case GreenMarkType.GREEN_LEFT1:
+                x, y = self.C_GREEN_LEFT_1.coord()
+                logger.info("Green left 1")
+            case GreenMarkType.GREEN_LEFT2:
+                x, y = self.C_GREEN_LEFT_2.coord()
+                logger.info("Green left 2")
+            case GreenMarkType.GREEN_LEFT3:
+                x, y = self.C_GREEN_LEFT_3.coord()
+                logger.info("Green left 3")
+            case GreenMarkType.GREEN_LEFT4:
+                x, y = self.C_GREEN_LEFT_4.coord()
+                logger.info("Green left 4")
+            case GreenMarkType.GREEN_LEFT5:
+                x, y = self.C_GREEN_LEFT_5.coord()
+                logger.info("Green left 5")
+            case GreenMarkType.GREEN_MAIN:
+                x, y = self.C_GREEN_MAIN.coord()
+                logger.info("Green main")
+        while 1:
+            self.screenshot()
+            if not self.appear(self.I_PREPARE_HIGHLIGHT):
+                break
+        if self.appear_then_click(self.I_LOCAL):
             time.sleep(0.3)
-            # 点击绿标
-            self.device.click(x, y)
+        self.device.click(x, y)
+
+    def green_mark_name(self, name: str = ''):
+        if name == '':
+            logger.warning("Green mark name is empty")
+            return
+        timeout_timer = Timer(6).start()
+        best = {'name': '', 'x': -1, 'y': -1, 'similarity': 0.0}
+        while not timeout_timer.reached():
+            self.screenshot()
+            results = self.O_GREEN_MARK_AREA.detect_and_ocr(self.device.image)
+            for ret in results:
+                similarity = difflib.SequenceMatcher(None, ret.ocr_text, name).ratio()
+                if similarity > best['similarity']:
+                    x = self.O_GREEN_MARK_AREA.roi[0] + ret.box[0, 0] + 5
+                    y = self.O_GREEN_MARK_AREA.roi[1] + ret.box[0, 1] + 30
+                    x = 1280 if x > 1280 else x
+                    y = 720 if y > 720 else y
+                    best = {'name': ret.ocr_text, 'x': x, 'y': y, 'similarity': similarity}
+            if best['similarity'] > 0.5:
+                logger.info(f'Green name success, text: {best["name"]}[{best["similarity"]:.2f}]')
+                self.device.click(best['x'], best['y'], control_name=best['name'])
+                return
+        logger.warning(f'Green name failed, best text: {best["name"]}[{best["similarity"]:.2f}]')
 
     def switch_preset_team(self, enable: bool = False, preset_group: int = 1, preset_team: int = 1):
         """
@@ -670,3 +707,37 @@ if __name__ == '__main__':
     unselected_color = get_unselect_color(self.C_PRESET_TEAM_1, self.C_PRESET_TEAM_2, self.C_PRESET_TEAM_3,
                                           size=color_size
                                           )
+
+
+def run_task_or_default_general_battle(task) -> bool:
+    """
+    超时或异常时接管战斗的兜底函数
+    https://github.com/runhey/OnmyojiAutoScript/issues/1884
+    """
+    # Config exposes task groups, not a top-level general_battle_config.
+    # Some tasks initialize conf themselves; navigation also runs before run().
+    sources = [getattr(task, 'conf', None)]
+    task_name = getattr(getattr(task.config, 'model', None), 'running_task', '')
+    if not task_name:
+        task_name = getattr(getattr(task, 'navigator', None), 'task_category', '')
+    if isinstance(task_name, str) and task_name:
+        sources.append(getattr(task.config, convert_to_underscore(task_name), None))
+    sources.append(task.config)
+    config = next((
+        candidate for source in sources
+        if isinstance(candidate := getattr(source, 'general_battle_config', None), GeneralBattleConfig)
+    ), None)
+
+    # Reuse task overrides, counters and asset customizations. Do not catch
+    # exceptions from the battle itself and accidentally start a second run.
+    run_battle = getattr(task, 'run_general_battle', None)
+    if callable(run_battle):
+        return run_battle(config=config)
+
+    class DefaultGeneralBattle(GeneralBattle):
+        def get_task_name(self):
+            # Costume setup validates the scheduler task against its owner.
+            return task.get_task_name()
+
+    gb = DefaultGeneralBattle(config=task.config, device=task.device)
+    return gb.run_general_battle(config=config)
