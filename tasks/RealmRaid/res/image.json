@@ -128,7 +128,7 @@
   {
     "itemName": "fresh_ensure",
     "imageName": "res_fresh_ensure.png",
-    "roiFront": "672,403,173,59",
+    "roiFront": "718,424,69,30",
     "roiBack": "672,403,173,59",
     "method": "Template matching",
     "threshold": 0.8,

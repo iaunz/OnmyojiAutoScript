@@ -2,7 +2,7 @@
   {
     "itemName": "create_room",
     "imageName": "gr_create_room.png",
-    "roiFront": "985,600,177,58",
+    "roiFront": "1005,609,131,38",
     "roiBack": "396,569,813,100",
     "method": "Template matching",
     "threshold": 0.8,
@@ -11,7 +11,7 @@
   {
     "itemName": "create_ensure",
     "imageName": "gr_create_ensure.png",
-    "roiFront": "813,560,129,63",
+    "roiFront": "842,574,67,34",
     "roiBack": "813,560,129,63",
     "method": "Template matching",
     "threshold": 0.8,
@@ -74,16 +74,16 @@
   {
     "itemName": "gr_auto_match",
     "imageName": "gr_gr_auto_match.png",
-    "roiFront": "697,598,181,63",
+    "roiFront": "722,609,134,36",
     "roiBack": "697,598,181,63",
     "method": "Template matching",
     "threshold": 0.8,
-    "description": "自动匹配"
+    "description": "智能匹配"
   },
   {
     "itemName": "gr_refresh",
     "imageName": "gr_gr_refresh.png",
-    "roiFront": "417,595,176,65",
+    "roiFront": "471,609,71,35",
     "roiBack": "417,595,176,65",
     "method": "Template matching",
     "threshold": 0.8,

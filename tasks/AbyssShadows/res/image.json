@@ -128,7 +128,7 @@
   {
     "itemName": "ensure_button",
     "imageName": "res_ensure_button.png",
-    "roiFront": "672,405,169,55",
+    "roiFront": "718,424,69,30",
     "roiBack": "672,405,169,55",
     "method": "Template matching",
     "threshold": 0.8,

@@ -11,7 +11,7 @@
   {
     "itemName": "u_confirm_alternate",
     "imageName": "rs_u_confirm_alternate.png",
-    "roiFront": "692,407,134,47",
+    "roiFront": "718,424,69,30",
     "roiBack": "692,407,134,47",
     "method": "Template matching",
     "threshold": 0.8,

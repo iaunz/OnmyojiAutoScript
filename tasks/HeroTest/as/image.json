@@ -182,7 +182,7 @@
   {
     "itemName": "bcmj_reset_close",
     "imageName": "as_bcmj_reset_close.png",
-    "roiFront": "429,397,186,71",
+    "roiFront": "492,424,71,30",
     "roiBack": "429,397,186,71",
     "method": "Template matching",
     "threshold": 0.8,

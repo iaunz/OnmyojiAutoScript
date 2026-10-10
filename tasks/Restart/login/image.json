@@ -56,7 +56,7 @@
   {
     "itemName": "watch_video_cancel",
     "imageName": "login_watch_video_cancel.png",
-    "roiFront": "466,396,130,61",
+    "roiFront": "492,424,71,30",
     "roiBack": "466,396,130,61",
     "method": "Template matching",
     "threshold": 0.8,
@@ -146,7 +146,7 @@
   {
     "itemName": "early_server_cancel",
     "imageName": "login_early_server_cancel.png",
-    "roiFront": "435,404,172,56",
+    "roiFront": "492,424,71,30",
     "roiBack": "435,404,172,56",
     "method": "Template matching",
     "threshold": 0.8,
@@ -155,7 +155,7 @@
   {
     "itemName": "cancel_battle",
     "imageName": "login_cancel_battle.png",
-    "roiFront": "471,395,129,55",
+    "roiFront": "492,424,71,30",
     "roiBack": "367,227,545,296",
     "method": "Template matching",
     "threshold": 0.8,

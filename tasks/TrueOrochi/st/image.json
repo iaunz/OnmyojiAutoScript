@@ -20,7 +20,7 @@
   {
     "itemName": "st_fire_confirm",
     "imageName": "st_st_fire_confirm.png",
-    "roiFront": "671,406,176,53",
+    "roiFront": "718,424,69,30",
     "roiBack": "671,406,176,53",
     "method": "Template matching",
     "threshold": 0.8,

@@ -155,7 +155,7 @@
   {
     "itemName": "invite_ensure",
     "imageName": "gi_invite_ensure.png",
-    "roiFront": "710,544,132,60",
+    "roiFront": "742,558,68,32",
     "roiBack": "710,544,132,60",
     "method": "Template matching",
     "threshold": 0.8,
@@ -308,8 +308,8 @@
   {
     "itemName": "i_no_default",
     "imageName": "gi_i_no_default.png",
-    "roiFront": "542,343,36,35",
-    "roiBack": "542,343,36,35",
+    "roiFront": "545,345,33,33",
+    "roiBack": "530,330,90,60",
     "method": "Template matching",
     "threshold": 0.8,
     "description": "不勾选 默认邀请"
@@ -317,8 +317,8 @@
   {
     "itemName": "i_default",
     "imageName": "gi_i_default.png",
-    "roiFront": "541,342,41,39",
-    "roiBack": "541,342,41,39",
+    "roiFront": "545,345,33,33",
+    "roiBack": "530,330,90,60",
     "method": "Template matching",
     "threshold": 0.8,
     "description": "勾选 默认邀请"
@@ -326,7 +326,7 @@
   {
     "itemName": "gi_cancel",
     "imageName": "gi_cancel.png",
-    "roiFront": "438,407,171,55",
+    "roiFront": "492,424,71,30",
     "roiBack": "438,407,171,55",
     "method": "Template matching",
     "threshold": 0.8,
@@ -335,7 +335,7 @@
   {
     "itemName": "gi_sure",
     "imageName": "gi_gi_sure.png",
-    "roiFront": "670,402,175,60",
+    "roiFront": "718,424,69,30",
     "roiBack": "670,402,175,60",
     "method": "Template matching",
     "threshold": 0.8,

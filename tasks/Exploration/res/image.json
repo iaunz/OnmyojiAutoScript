@@ -119,11 +119,11 @@
   {
     "itemName": "battle_reward",
     "imageName": "res_battle_reward.png",
-    "roiFront": "647,395,31,21",
-    "roiBack": "1,1,1278,718",
+    "roiFront": "514,206,255,70",
+    "roiBack": "450,130,390,200",
     "method": "Template matching",
     "threshold": 0.9,
-    "description": "战后奖励"
+    "description": "战后奖励弹窗标题"
   },
   {
     "itemName": "exploration_title",
@@ -146,8 +146,8 @@
   {
     "itemName": "get_reward",
     "imageName": "res_get_reward.png",
-    "roiFront": "464,231,339,44",
-    "roiBack": "464,231,339,44",
+    "roiFront": "514,206,255,70",
+    "roiBack": "450,130,390,200",
     "method": "Template matching",
     "threshold": 0.8,
     "description": "description"
