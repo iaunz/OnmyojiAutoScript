@@ -101,8 +101,8 @@ class ExplorationAssets:
 	I_NORMAL_BATTLE_BUTTON = RuleImage(roi_front=(636,263,42,39), roi_back=(0,0,1279,719), threshold=0.8, method="Template matching", file="./tasks/Exploration/res/res_normal_battle_button.png")
 	# boss 
 	I_BOSS_BATTLE_BUTTON = RuleImage(roi_front=(683,256,38,34), roi_back=(0,0,1276,719), threshold=0.8, method="Template matching", file="./tasks/Exploration/res/res_boss_battle_button.png")
-	# 战后奖励弹窗标题
-	I_BATTLE_REWARD = RuleImage(roi_front=(514,206,255,70), roi_back=(450,130,390,200), threshold=0.9, method="Template matching", file="./tasks/Exploration/res/res_battle_reward.png")
+	# 探索场景内宝箱（点击后打开奖励弹窗）
+	I_BATTLE_REWARD = RuleImage(roi_front=(647,395,31,21), roi_back=(1,1,1278,718), threshold=0.9, method="Template matching", file="./tasks/Exploration/res/res_battle_reward.png")
 	# 妖 
 	I_EXPLORATION_TITLE = RuleImage(roi_front=(1133,124,47,43), roi_back=(1133,124,47,43), threshold=0.7, method="Template matching", file="./tasks/Exploration/res/res_exploration_title.png")
 	# description 

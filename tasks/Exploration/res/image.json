@@ -119,11 +119,11 @@
   {
     "itemName": "battle_reward",
     "imageName": "res_battle_reward.png",
-    "roiFront": "514,206,255,70",
-    "roiBack": "450,130,390,200",
+    "roiFront": "647,395,31,21",
+    "roiBack": "1,1,1278,718",
     "method": "Template matching",
     "threshold": 0.9,
-    "description": "战后奖励弹窗标题"
+    "description": "探索场景内宝箱（点击后打开奖励弹窗）"
   },
   {
     "itemName": "exploration_title",
