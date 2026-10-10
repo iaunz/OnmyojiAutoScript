@@ -105,10 +105,11 @@ class GeneralBattle(BattleWait, GeneralBuff):
         # 点击返回
         while 1:
             self.screenshot()
-            if self.appear_then_click(self.I_EXIT, interval=1.5):
-                continue
+            # 弹窗后方的返回图标仍能匹配，先处理确认框，避免反复点击背景。
             if self.appear(self.I_EXIT_ENSURE):
                 break
+            if self.appear_then_click(self.I_EXIT, interval=1.5):
+                continue
         logger.info(f"Click {self.I_EXIT.name}")
 
         # 点击返回确认
@@ -147,10 +148,10 @@ class GeneralBattle(BattleWait, GeneralBuff):
         logger.info(f"Click {self.I_EXIT.name}")
         while 1:
             self.screenshot()
-            if self.appear_then_click(self.I_EXIT, interval=1.5):
-                continue
             if self.appear(self.I_EXIT_ENSURE):
                 break
+            if self.appear_then_click(self.I_EXIT, interval=1.5):
+                continue
 
         # 点击返回确认
         while 1:
