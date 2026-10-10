@@ -13,7 +13,7 @@ from tasks.Component.GeneralRoom.general_room import GeneralRoom
 from tasks.Component.GeneralInvite.general_invite import GeneralInvite
 from tasks.Component.ReplaceShikigami.replace_shikigami import ReplaceShikigami
 from tasks.Exploration.assets import ExplorationAssets
-from tasks.Exploration.config import ChooseRarity, AutoRotate, AttackNumber, UpType
+from tasks.Exploration.config import ChooseRarity, AutoRotate, AttackNumber, UpType, ExplorationLevel
 from tasks.Component.GeneralBattle.general_battle import GeneralBattle
 from tasks.GameUi.game_ui import GameUi
 from tasks.GameUi.page import page_shikigami_records, page_main
@@ -140,11 +140,13 @@ class BaseExploration(GameUi, GeneralBattle, GeneralRoom, GeneralInvite, Replace
         # I_E_EXPLORATION_CLICK 不出现、OCR 交集为空 → 一直滑屏卡死。故进选关前无条件确保主线 tab。
         self.goto_page(pages.page_mainline)
 
+        target_level = self.config.exploration.exploration_config.exploration_level
+        level_numbers = {level.value: index for index, level in enumerate(ExplorationLevel)}
+        target_number = level_numbers[target_level]
+        # 新版列表按章节递增排列；OCR 暂时为空时沿用上一次方向。
+        swipe = self.S_SWIPE_LEVEL_DOWN
         swipeCount = 0
         while 1:
-            # 探索的 config
-            explorationConfig = self.config.exploration
-
             # 判断有无目标章节
             self.screenshot()
             # 获取当前章节名
@@ -153,18 +155,23 @@ class BaseExploration(GameUi, GeneralBattle, GeneralRoom, GeneralInvite, Replace
             # https://github.com/runhey/OnmyojiAutoScript/issues/1540
             text1 = [text.replace("名", "第").replace("书", "第") for text in text1]
             # 判断当前章节有无目标章节
-            result = set(text1).intersection({explorationConfig.exploration_config.exploration_level})
             # 有则跳出检测
-            if self.appear(self.I_E_EXPLORATION_CLICK) or result and len(result) > 0:
+            if self.appear(self.I_E_EXPLORATION_CLICK) or target_level in text1:
                 break
             if self.appear_then_click(self.I_UI_CONFIRM, interval=1):
                 continue
             if self.appear_then_click(self.I_UI_CONFIRM_SAMLL, interval=1):
                 continue
+            visible_numbers = [level_numbers[text] for text in text1 if text in level_numbers]
+            if visible_numbers:
+                if target_number < min(visible_numbers):
+                    swipe = self.S_SWIPE_LEVEL_UP
+                elif target_number > max(visible_numbers):
+                    swipe = self.S_SWIPE_LEVEL_DOWN
             self.device.click_record_clear()
-            self.swipe(self.S_SWIPE_LEVEL_UP)
+            self.swipe(swipe)
             swipeCount += 1
-            debug_info = f"Swiped {swipeCount} times, current exploration level: {text1}"
+            debug_info = f"Swiped {swipeCount} times ({swipe.name}), current exploration level: {text1}"
             logger.info(debug_info)
             if swipeCount >= 15:
                 raise GameStuckError(
@@ -179,7 +186,7 @@ class BaseExploration(GameUi, GeneralBattle, GeneralRoom, GeneralInvite, Replace
                 continue
             if self.appear_then_click(self.I_UI_CONFIRM_SAMLL, interval=1):
                 continue
-            self.O_E_EXPLORATION_LEVEL_NUMBER.keyword = explorationConfig.exploration_config.exploration_level
+            self.O_E_EXPLORATION_LEVEL_NUMBER.keyword = target_level
             if self.ocr_appear_click(self.O_E_EXPLORATION_LEVEL_NUMBER):
                 self.wait_until_appear(self.I_E_EXPLORATION_CLICK, wait_time=3)
             if self.appear(self.I_E_EXPLORATION_CLICK):
