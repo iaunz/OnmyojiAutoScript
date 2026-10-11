@@ -572,6 +572,21 @@ class Script:
             self.exception_handler(e=e, command=command)
             self.config.task_call('Restart')
             return True
+        except GameOcrError as e:
+            logger.error(e)
+            try:
+                self.save_error_log()
+            except Exception:
+                logger.exception('Failed to save OCR error log')
+            logger.warning('Restarting game after repeated OCR failures')
+            # 定时 Restart 可能被禁用，故障恢复直接执行重启任务。
+            running_task = self.config.model.running_task
+            try:
+                self.config.model.running_task = 'Restart'
+                self.run('Restart')
+            finally:
+                self.config.model.running_task = running_task
+            return False
         except (GameStuckError, GameTooManyClickError) as e:
             logger.error(e)
             self.save_error_log()

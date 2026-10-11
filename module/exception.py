@@ -31,6 +31,11 @@ class GameStuckError(Exception):
     pass
 
 
+class GameOcrError(GameStuckError):
+    """Repeated OCR failures require an immediate game restart."""
+    pass
+
+
 class GameBugError(Exception):
     # An error has occurred in Azur Lane game client. Alas is unable to handle.
     # A restart should fix it.

@@ -16,7 +16,7 @@ from tasks.Component.GeneralBattle.battle_wait import battle_wait_strategy
 
 
 from module.logger import logger
-from module.exception import TaskEnd
+from module.exception import GameOcrError, TaskEnd
 from module.atom.image_grid import ImageGrid
 from module.atom.image import RuleImage
 from module.atom.click import RuleClick
@@ -24,6 +24,7 @@ from module.atom.click import RuleClick
 
 class ScriptTask(GeneralBattle, GameUi, SwitchSoul, RealmRaidAssets):
     medal_grid: ImageGrid = None
+    TICKET_OCR_RETRIES = 10
 
     def run(self):
         self.run_2()
@@ -33,13 +34,7 @@ class ScriptTask(GeneralBattle, GameUi, SwitchSoul, RealmRaidAssets):
         如果没有票了，那么就返回False
         :return:
         """
-        self.wait_until_appear(self.I_BACK_RED)
-        self.screenshot()
-        cu, res, total = self.O_NUMBER.ocr(self.device.image)
-        if cu == 0 and cu + res == total:
-            logger.warning(f'Execute round failed, no ticket')
-            return False
-        return True
+        return self.check_ticket()
 
     def medal_fire(self) -> bool:
         """
@@ -150,6 +145,7 @@ class ScriptTask(GeneralBattle, GameUi, SwitchSoul, RealmRaidAssets):
         # 开始循环
         success = True
         last_battle = True  # 记录上一次战斗的结果
+        successful_count = 0
         # 更改循环顺序
         while 1:
             self.screenshot()
@@ -158,12 +154,12 @@ class ScriptTask(GeneralBattle, GameUi, SwitchSoul, RealmRaidAssets):
                 logger.info("Pop-up detected: Refresh Confirmation. Clicking Confirm.")
                 self.appear_then_click(self.I_FRESH_ENSURE, interval=1.5)
                 continue
-            # 检查票数
+            # 检查票数，同时确认奖励已领取且已返回突破列表。
             if not self.check_ticket(con.raid_config.number_base):
                 break
-            # 挑战次数
-            if self.current_count >= con.raid_config.number_attack:
-                logger.info(f'Current count {self.current_count}, max count {con.raid_config.number_attack}')
+            # 仅胜利场次计入上限，通用战斗的 current_count 仍用于战前配置。
+            if successful_count >= con.raid_config.number_attack:
+                logger.info(f'Successful count {successful_count}, max count {con.raid_config.number_attack}')
                 break
             # ----------------------------------------开始进攻
             medal, index = self.find_one(False)
@@ -204,12 +200,18 @@ class ScriptTask(GeneralBattle, GameUi, SwitchSoul, RealmRaidAssets):
                 con.general_battle_config.lock_team_enable = False
             self.fire(index)
             last_battle = self.run_general_battle(con.general_battle_config)
+            if last_battle:
+                successful_count += 1
+                logger.info(f'Successful raids: {successful_count}/{con.raid_config.number_attack}')
             if lock_before:
                 con.general_battle_config.lock_team_enable = lock_before
             # 检查是否每三次领一个奖励
             if self.reward_detect_click(False):
                 logger.info('Rewards of three wins')
                 continue
+            # 战斗返回时可能还在过渡画面，先有限重试确认页面，再判断刷新或退出。
+            if not self.is_realm_raid_page() and not self.check_ticket(con.raid_config.number_base):
+                break
             # 刷新 >> 如果勾选了三次刷新并且到达了三次，就刷新
             if con.raid_config.three_refresh and self.appear(self.I_RR_THREE, threshold=0.8):
                 logger.info('Three refresh')
@@ -298,21 +300,40 @@ class ScriptTask(GeneralBattle, GameUi, SwitchSoul, RealmRaidAssets):
         if base < 0 or base > 30:
             logger.warning(f'It is not a valid base {base}')
             base = 0
-        self.wait_until_appear(self.I_BACK_RED)
-        self.screenshot()
-        cu, res, total = self.O_NUMBER.ocr(self.device.image)
+        # 初次识别失败后，每隔一秒重新截图，最多重试十次。
+        for retry in range(self.TICKET_OCR_RETRIES + 1):
+            if retry:
+                time.sleep(1)
+            self.screenshot()
+            if self.reward_detect_click(False):
+                logger.info('Claim raid reward before reading tickets')
+            elif self.is_realm_raid_page():
+                cu, res, total = self.O_NUMBER.ocr(self.device.image)
+                # DigitCounter 识别失败会返回 (0, 0, 0)，不能当作没票。
+                if total == 30 and 0 <= cu <= total and cu + res == total:
+                    if cu == 0:
+                        logger.warning('Execute raid failed, no ticket')
+                        return False
+                    if cu < base:
+                        logger.warning('Execute raid failed, ticket is not enough')
+                        return False
+                    return True
+                logger.warning(f'Invalid raid ticket OCR: {(cu, res, total)}')
+            else:
+                logger.warning('Not on the realm raid page; cannot read tickets')
+            logger.warning(f'Raid ticket recognition failed (retry {retry}/{self.TICKET_OCR_RETRIES})')
 
-        if total == 0:
-            self.reward_detect_click(True)
-            # 增加出现聊天框遮挡，处理奖励之后，重新识别票数
-            cu, res, total = self.O_NUMBER.ocr(self.device.image)
-        if cu == 0 and cu + res == total:
-            logger.warning(f'Execute raid failed, no ticket')
-            return False
-        elif cu + res == total and cu < base:
-            logger.warning(f'Execute raid failed, ticket is not enough')
-            return False
-        return True
+        logger.error('Raid ticket recognition exhausted; saving screenshot to log/screenshots')
+        try:
+            self.device.save_screenshot(genre='realm_raid_ticket_ocr', interval=0)
+        except Exception:
+            logger.exception('Failed to save raid ticket screenshot')
+        raise GameOcrError(f'Realm raid ticket OCR failed after {self.TICKET_OCR_RETRIES} retries')
+
+    def is_realm_raid_page(self) -> bool:
+        return (not self.is_in_real_battle(False)
+                and self.appear(self.I_CHECK_REALM_RAID)
+                and self.appear(self.I_BACK_RED))
 
     @cached_property
     def order_medal(self) -> ImageGrid:
@@ -413,37 +434,13 @@ class ScriptTask(GeneralBattle, GameUi, SwitchSoul, RealmRaidAssets):
 
     def reward_detect_click(self, screenshot: bool=True) -> bool:
         """
-        检测是否出现 每三次就有奖励的界面, 有就领取
-        :return:
+        领取三胜奖励；票数和页面恢复由 check_ticket 有限重试。
         """
         if screenshot:
             self.screenshot()
-        # 由于更改识别顺序，退出战斗之后，需要先等待回到个人突破界面，即识别到红色退出按钮，再进行奖励判断
-        self.wait_until_appear(self.I_BACK_RED)
-        text = self.O_TEXT.ocr(self.device.image)
-        # 识别突破卷区域，如果识别到了且其中含有文字，即有聊天框遮挡则进入循环，等待三胜奖励出现并点击，循环退出条件为识别到票（即*/*的形式）
-        if text != "":
-            if re.search(r'[\u4e00-\u9fff]', text):
-                while 1:
-                    self.screenshot()
-                    result = self.O_TEXT.ocr(self.device.image)
-                    if not re.search(r'[\u4e00-\u9fff]', result) and re.search(r'(\d+)/(\d+)', result):
-                        return True
-                    if self.appear_then_click(self.I_SOUL_RAID, interval=1.5):
-                        continue
-
-        # if self.appear(self.I_SOUL_RAID):
-        #     self.screenshot()
-        #     # 稳定一次的截图时间
-        #     # 再次判断是否出现的
-        #     if not self.appear(self.I_SOUL_RAID):
-        #         return False
-        #     while 1:
-        #         self.screenshot()
-        #         if not self.appear(self.I_SOUL_RAID, threshold=0.7):
-        #             return True
-        #         if self.appear_then_click(self.I_SOUL_RAID, interval=1.5):
-        #             continue
+        if self.is_in_real_battle(False):
+            return False
+        return self.appear_then_click(self.I_SOUL_RAID, interval=1.5)
 
     def check_refresh(self, screenshot: bool=True) -> bool:
         """
