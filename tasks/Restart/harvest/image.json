@@ -65,11 +65,20 @@
   {
     "itemName": "harvest_mail_confirm",
     "imageName": "harvest_harvest_mail_confirm.png",
-    "roiFront": "687,543,168,64",
-    "roiBack": "687,543,168,64",
+    "roiFront": "674,544,178,62",
+    "roiBack": "650,520,230,110",
     "method": "Template matching",
     "threshold": 0.8,
     "description": "确认收取邮件"
+  },
+  {
+    "itemName": "mail_reward",
+    "imageName": "harvest_mail_reward.png",
+    "roiFront": "514,115,255,70",
+    "roiBack": "450,75,390,255",
+    "method": "Template matching",
+    "threshold": 0.8,
+    "description": "邮件获得奖励，兼容多行奖励时上移的标题"
   },
   {
     "itemName": "harvest_soul",

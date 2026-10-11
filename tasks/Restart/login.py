@@ -304,34 +304,64 @@ class LoginHandler(BaseTask, RestartAssets, GameUiAssets, GeneralBuffAssets):
         self.O_LOGIN_SPECIFIC_SERVE.keyword = character
 
     def harvest_mail(self) -> bool:
-        if not self.appear_multi_scale(self.I_HARVEST_MAIL,scale_range=(0.8, 1.1)) and \
+        mail_screens = (self.I_READ_ALL_MAIL, self.I_HARVEST_MAIL_CONFIRM, self.I_MAIL_REWARD)
+        if not any(self.appear(asset) for asset in mail_screens) and \
+                not self.appear_multi_scale(self.I_HARVEST_MAIL, scale_range=(0.8, 1.1)) and \
                 not self.appear(self.I_HARVEST_MAIL_COPY):
-            if not self.appear(self.I_READ_ALL_MAIL):
-                return False
+            return False
         logger.info('Harvest mail')
+        open_timer = Timer(10).start()
         while 1:
             self.screenshot()
-            if self.appear(self.I_READ_ALL_MAIL):
+            if any(self.appear(asset) for asset in mail_screens):
                 break
+            if open_timer.reached():
+                raise GameStuckError('Open mail timeout')
             if self.appear_then_click_multi_scale(self.I_HARVEST_MAIL, interval=1.5, scale_range=(0.8, 1.1)):
                 continue
             if self.appear_then_click(self.I_HARVEST_MAIL_COPY, interval=1.5):
                 continue
-        timeout_timer = Timer(3).start()
+        timeout_timer = Timer(30).start()
+        idle_timer = Timer(5, count=2).start()
+        read_all_done = False
         logger.info('Exec harvest mail')
         while 1:
             self.screenshot()
             if timeout_timer.reached():
-                break
-            if self.appear_then_click(self.I_HARVEST_MAIL_CONFIRM, interval=0.8):
-                break
+                raise GameStuckError('Harvest mail timeout')
 
-            if self.appear_then_click(self.I_READ_ALL_MAIL, interval=1.5):
+            # 弹窗后面的按钮仍然能匹配；点击间隔未到时也不能操作背景。
+            if self.appear(self.I_MAIL_REWARD):
+                if self.appear_then_click(self.I_MAIL_REWARD, action=self.C_UI_REWARD, interval=0.8):
+                    logger.info('Collect mail rewards')
+                idle_timer.reset()
                 continue
-            if self.appear_then_click(self.I_HARVEST_MAIL_ALL, interval=1.5):
+            if self.appear(self.I_UI_AWARD):
+                self.appear_then_click(self.I_UI_AWARD, interval=0.8)
+                idle_timer.reset()
+                continue
+            if self.appear(self.I_HARVEST_MAIL_CONFIRM):
+                if self.appear_then_click(self.I_HARVEST_MAIL_CONFIRM, interval=0.8):
+                    logger.info('Confirm claim all mail')
+                idle_timer.reset()
+                continue
+
+            # 先领取附件，再标记已读；每次操作后重新等待页面和奖励动画。
+            if self.appear(self.I_HARVEST_MAIL_ALL):
+                if self.appear_then_click(self.I_HARVEST_MAIL_ALL, interval=1.5):
+                    logger.info('Claim all mail')
+                idle_timer.reset()
+                continue
+            if not read_all_done and self.appear_then_click(self.I_READ_ALL_MAIL, interval=1.5):
+                read_all_done = True
+                idle_timer.reset()
                 continue
             if self.appear_then_click(self.I_MAIL_RED_POINT, interval=4):
+                read_all_done = False
+                idle_timer.reset()
                 continue
+            if idle_timer.reached():
+                break
         self.ui_click_until_disappear(self.I_LOGIN_RED_CLOSE)
         return True
     

@@ -45,7 +45,9 @@ class RestartAssets:
 	# 有些邮件需要点击一次 
 	I_HARVEST_MAIL_OPEN = RuleImage(roi_front=(163,367,45,48), roi_back=(139,86,100,487), threshold=0.9, method="Template matching", file="./tasks/Restart/harvest/harvest_harvest_mail_open.png")
 	# 确认收取邮件 
-	I_HARVEST_MAIL_CONFIRM = RuleImage(roi_front=(687,543,168,64), roi_back=(687,543,168,64), threshold=0.8, method="Template matching", file="./tasks/Restart/harvest/harvest_harvest_mail_confirm.png")
+	I_HARVEST_MAIL_CONFIRM = RuleImage(roi_front=(674,544,178,62), roi_back=(650,520,230,110), threshold=0.8, method="Template matching", file="./tasks/Restart/harvest/harvest_harvest_mail_confirm.png")
+	# 邮件获得奖励，兼容多行奖励时上移的标题
+	I_MAIL_REWARD = RuleImage(roi_front=(514,115,255,70), roi_back=(450,75,390,255), threshold=0.8, method="Template matching", file="./tasks/Restart/harvest/harvest_mail_reward.png")
 	# description 
 	I_HARVEST_SOUL = RuleImage(roi_front=(241,497,38,36), roi_back=(68,480,930,72), threshold=0.8, method="Template matching", file="./tasks/Restart/harvest/harvest_harvest_soul.png")
 	# description 
