@@ -3,6 +3,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from module.base import timer
 from tasks.Component.GeneralBattle.battle_wait import (
     BattleResult,
     BattleWait,
@@ -53,6 +54,43 @@ def test_default_plan_contains_default_hooks_and_sequence():
         'completion>interrupt>prepare>preset>green>red>echo>success>failure>idle'
     )
     assert plan.function_setup_name == '_bw_setup_default'
+
+
+def test_completion_fallback_avoids_rewards_and_stops_after_five_clicks(monkeypatch):
+    now = [100.0]
+    monkeypatch.setattr(timer, 'time', SimpleNamespace(time=lambda: now[0]))
+
+    class CompletionReplay(BattleWait):
+        def __init__(self):
+            self.clicks = []
+
+        def appear(self, asset, **kwargs):
+            return False
+
+        def click(self, asset, **kwargs):
+            point = asset.coord()
+            # The large central panel opens item details when clicked.
+            x, y = point
+            assert not (248 <= x < 1063 and 143 <= y < 678)
+            self.clicks.append(point)
+            return True
+
+    task = CompletionReplay()
+    runtime.update_options(
+        {'completion': OptionCompletionDefault(check_imgs=[task.I_EXIT])},
+        plan=BattleWaitPlan(),
+    )
+
+    assert task._bw_completion_default() == HookSignal.CONTINUE
+    now[0] += 2.9
+    assert task._bw_completion_default() == HookSignal.CONTINUE
+    assert task.clicks == []
+    for _ in range(5):
+        now[0] += 3.1
+        assert task._bw_completion_default() == HookSignal.CONTINUE
+    assert task._bw_completion_default() == HookSignal.DONE
+    assert len(task.clicks) == 5
+    assert runtime.pub_ctx.per_task.count == 1
 
 
 def test_decorator_passes_its_plan_to_the_wrapped_function():

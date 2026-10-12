@@ -3,7 +3,7 @@
     "itemName": "ui_confirm",
     "imageName": "ui_ui_confirm.png",
     "roiFront": "718,424,69,30",
-    "roiBack": "667,398,179,66",
+    "roiBack": "643,389,216,95",
     "method": "Template matching",
     "threshold": 0.8,
     "description": "长一点的确认"
@@ -12,7 +12,7 @@
     "itemName": "ui_cancel",
     "imageName": "ui_ui_cancel.png",
     "roiFront": "492,424,71,30",
-    "roiBack": "432,403,177,62",
+    "roiBack": "356,384,276,125",
     "method": "Template matching",
     "threshold": 0.8,
     "description": "长一点的取消"
@@ -21,7 +21,7 @@
     "itemName": "ui_reward",
     "imageName": "ui_ui_reward.png",
     "roiFront": "514,206,255,70",
-    "roiBack": "450,130,390,200",
+    "roiBack": "450,69,390,303",
     "method": "Template matching",
     "threshold": 0.73,
     "description": "'获得奖励' 四个大字"
@@ -115,5 +115,32 @@
     "method": "Template matching",
     "threshold": 0.8,
     "description": "圆形返回按钮(移植自mine)"
+  },
+  {
+    "itemName": "ui_confirm_old",
+    "imageName": "ui_ui_confirm_old.png",
+    "roiFront": "685,376,179,66",
+    "roiBack": "663,334,232,193",
+    "method": "Template matching",
+    "threshold": 0.8,
+    "description": "长一点的确认（旧）"
+  },
+  {
+    "itemName": "ui_cancel_old",
+    "imageName": "ui_ui_cancel_old.png",
+    "roiFront": "417,368,177,62",
+    "roiBack": "366,349,261,173",
+    "method": "Template matching",
+    "threshold": 0.8,
+    "description": "长一点的取消（旧）"
+  },
+  {
+    "itemName": "ui_reward_alt",
+    "imageName": "ui_ui_reward_alt.png",
+    "roiFront": "530,126,211,66",
+    "roiBack": "450,69,390,303",
+    "method": "Template matching",
+    "threshold": 0.73,
+    "description": "Alternate reward title"
   }
 ]

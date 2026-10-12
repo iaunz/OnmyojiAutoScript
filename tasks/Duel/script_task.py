@@ -207,7 +207,7 @@ class ScriptTask(GameUi, GeneralBattle, SwitchSoul, DuelAssets, SwitchOnmyoji):
             self.screenshot()
             if self.appear(self.I_D_FAIL) or self.appear(self.I_FALSE):
                 return
-            if self.appear_then_click(self.I_EXIT_ENSURE):
+            if self.appear_then_click(self.I_UI_CONFIRM):
                 continue
             # 选式神界面退出或战斗内退出
             if self.appear_then_click(self.I_DUEL_EXIT, interval=1) or self.appear_then_click(self.I_EXIT, interval=1):
@@ -303,7 +303,8 @@ class ScriptTask(GameUi, GeneralBattle, SwitchSoul, DuelAssets, SwitchOnmyoji):
             self.appear(self.I_D_CHECK_BAN)
 
     def is_battle_win(self) -> bool:
-        return self.appear(self.I_WIN) or self.appear(self.I_D_VICTORY)
+        return self.appear(self.I_WIN) or self.appear(self.I_D_VICTORY) or \
+            self.appear(self.I_D_VICTORY_SHARE)
 
     def is_battle_lose(self) -> bool:
         return self.appear(self.I_FALSE) or self.appear(self.I_D_FAIL)

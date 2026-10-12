@@ -22,7 +22,7 @@ class BattleExitReplay(GeneralBattle):
             return self.screen == 'battle' or (
                 self.screen == 'confirm' and self.background_exit_visible
             )
-        if asset is self.I_EXIT_ENSURE:
+        if asset is self.I_UI_CONFIRM:
             return self.screen == 'confirm'
         if asset is self.I_FALSE:
             return self.screen == 'defeat'
@@ -34,7 +34,7 @@ class BattleExitReplay(GeneralBattle):
         self.clicks.append(asset.name)
         if asset is self.I_EXIT:
             self.screen = 'confirm'
-        elif asset is self.I_EXIT_ENSURE:
+        elif asset is self.I_UI_CONFIRM:
             if self.ignored_confirms:
                 self.ignored_confirms -= 1
             else:
@@ -62,7 +62,7 @@ def test_exit_confirms_dialog_before_clicking_the_background(method, background_
 
     assert task.run_exit(method) is True
     assert task.screen == 'finished'
-    assert task.clicks == [task.I_EXIT.name, task.I_EXIT_ENSURE.name, task.I_FALSE.name]
+    assert task.clicks == [task.I_EXIT.name, task.I_UI_CONFIRM.name, task.I_FALSE.name]
 
 
 @pytest.mark.parametrize('method', ['run_general_battle_back', 'exit_battle'])
@@ -71,7 +71,7 @@ def test_already_open_exit_dialog_is_confirmed_without_reopening_it(method):
 
     assert task.run_exit(method) is True
     assert task.screen == 'finished'
-    assert task.clicks == [task.I_EXIT_ENSURE.name, task.I_FALSE.name]
+    assert task.clicks == [task.I_UI_CONFIRM.name, task.I_FALSE.name]
 
 
 def test_exit_battle_ignores_confirmation_without_a_battle_anchor():
@@ -88,7 +88,7 @@ def test_ignored_confirmation_click_retries_the_dialog_not_the_background(method
     assert task.run_exit(method) is True
     assert task.screen == 'finished'
     assert task.clicks == [
-        task.I_EXIT.name, task.I_EXIT_ENSURE.name, task.I_EXIT_ENSURE.name, task.I_FALSE.name,
+        task.I_EXIT.name, task.I_UI_CONFIRM.name, task.I_UI_CONFIRM.name, task.I_FALSE.name,
     ]
 
 

@@ -144,15 +144,6 @@
     "description": "description"
   },
   {
-    "itemName": "get_reward",
-    "imageName": "res_get_reward.png",
-    "roiFront": "514,206,255,70",
-    "roiBack": "450,130,390,200",
-    "method": "Template matching",
-    "threshold": 0.8,
-    "description": "description"
-  },
-  {
     "itemName": "red_close",
     "imageName": "res_red_close.png",
     "roiFront": "1027,129,41,42",

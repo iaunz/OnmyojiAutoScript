@@ -40,11 +40,14 @@ class GlobalGameAssets:
 
 	# Image Rule Assets
 	# 长一点的确认 
-	I_UI_CONFIRM = RuleImage(roi_front=(718,424,69,30), roi_back=(667,398,179,66), threshold=0.8, method="Template matching", file="./tasks/GlobalGame/ui/ui_ui_confirm.png")
+	I_UI_CONFIRM = RuleImage(roi_front=(718,424,69,30), roi_back=(643,389,216,95), threshold=0.8, method="Template matching", file="./tasks/GlobalGame/ui/ui_ui_confirm.png")
+	I_UI_CONFIRM_OLD = RuleImage(roi_front=(685,376,179,66), roi_back=(663,334,232,193), threshold=0.8, method="Template matching", file="./tasks/GlobalGame/ui/ui_ui_confirm_old.png")
 	# 长一点的取消 
-	I_UI_CANCEL = RuleImage(roi_front=(492,424,71,30), roi_back=(432,403,177,62), threshold=0.8, method="Template matching", file="./tasks/GlobalGame/ui/ui_ui_cancel.png")
+	I_UI_CANCEL = RuleImage(roi_front=(492,424,71,30), roi_back=(356,384,276,125), threshold=0.8, method="Template matching", file="./tasks/GlobalGame/ui/ui_ui_cancel.png")
+	I_UI_CANCEL_OLD = RuleImage(roi_front=(417,368,177,62), roi_back=(366,349,261,173), threshold=0.8, method="Template matching", file="./tasks/GlobalGame/ui/ui_ui_cancel_old.png")
 	# '获得奖励' 四个大字 
-	I_UI_REWARD = RuleImage(roi_front=(514,206,255,70), roi_back=(450,130,390,200), threshold=0.73, method="Template matching", file="./tasks/GlobalGame/ui/ui_ui_reward.png")
+	I_UI_REWARD = RuleImage(roi_front=(514,206,255,70), roi_back=(450,69,390,303), threshold=0.73, method="Template matching", file="./tasks/GlobalGame/ui/ui_ui_reward.png")
+	I_UI_REWARD_ALT = RuleImage(roi_front=(530,126,211,66), roi_back=(450,69,390,303), threshold=0.73, method="Template matching", file="./tasks/GlobalGame/ui/ui_ui_reward_alt.png")
 	# description 
 	I_UI_BACK_RED = RuleImage(roi_front=(1041,111,34,38), roi_back=(877,15,383,254), threshold=0.8, method="Template matching", file="./tasks/GlobalGame/ui/ui_ui_back_red.png")
 	# description 

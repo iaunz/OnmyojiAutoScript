@@ -15,6 +15,7 @@ import random
 from module.atom.click import RuleClick
 from tasks.Component.GeneralBattle.assets import GeneralBattleAssets
 from tasks.GlobalGame.assets import GlobalGameAssets
+from tasks.GlobalGame.global_game import GlobalGame
 from tasks.GameUi.assets import GameUiAssets
 from tasks.GameUi.matcher import any_of, all_of
 from tasks.GameUi.page_definition import Page
@@ -347,7 +348,7 @@ page_reward = Page(
         GeneralBattleAssets.I_REWARD_PURPLE_SNAKE_SKIN,
         GeneralBattleAssets.I_REWARD_SOUL_5,
         GeneralBattleAssets.I_REWARD_SOUL_6,
-        GlobalGameAssets.I_UI_REWARD,
+        GlobalGame.I_UI_REWARD,
     ),
     category="global",
     priority=25

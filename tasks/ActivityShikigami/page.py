@@ -1,6 +1,6 @@
 from tasks.ActivityShikigami.assets import ActivityShikigamiAssets as asa
 from tasks.GameUi.page import Page, page_main
-from tasks.GlobalGame.assets import GlobalGameAssets as gga
+from tasks.GlobalGame.global_game import GlobalGame as gga
 from tasks.GameUi.assets import GameUiAssets as G
 from tasks.Component.RightActivity.assets import RightActivityAssets as RAA
 from tasks.base_task import BaseTask as BT

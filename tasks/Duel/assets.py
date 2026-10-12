@@ -34,6 +34,7 @@ class DuelAssets:
 	I_D_PREPARE = RuleImage(roi_front=(1127,541,100,100), roi_back=(1127,541,100,100), threshold=0.8, method="Template matching", file="./tasks/Duel/duel/duel_d_prepare.png")
 	# 胜利 
 	I_D_VICTORY = RuleImage(roi_front=(433,76,100,100), roi_back=(433,76,100,100), threshold=0.8, method="Template matching", file="./tasks/Duel/duel/duel_d_victory.png")
+	I_D_VICTORY_SHARE = RuleImage(roi_front=(1100,580,90,120), roi_back=(1080,560,130,160), threshold=0.8, method="Masked template matching", file="./tasks/Duel/duel/duel_d_victory_share.png")
 	# 失败 
 	I_D_FAIL = RuleImage(roi_front=(422,66,100,100), roi_back=(422,66,100,100), threshold=0.8, method="Template matching", file="./tasks/Duel/duel/duel_d_fail.png")
 	# 战 
@@ -75,5 +76,4 @@ class DuelAssets:
 	O_D_AUTO = RuleOcr(roi=(30,640,65,44), area=(30,640,65,44), mode="Single", method="Default", keyword="自动", name="d_auto")
 	# 被办式神名称 
 	O_D_BAN_NAME = RuleOcr(roi=(92,97,82,25), area=(92,97,82,25), mode="Single", method="Default", keyword="", name="d_ban_name")
-
 

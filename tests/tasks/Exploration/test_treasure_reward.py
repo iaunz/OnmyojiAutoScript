@@ -8,6 +8,8 @@ import numpy as np
 import pytest
 
 from tasks.Exploration.assets import ExplorationAssets
+from tasks.GlobalGame.assets import GlobalGameAssets
+from tasks.GlobalGame.global_game import GlobalGame
 from tasks.Exploration.base import Scene
 from tasks.Exploration.solo import SoloExploration
 
@@ -28,11 +30,14 @@ def scene_with_chest(crop, x=500, y=340):
     return image
 
 
-def reward_popup():
+def reward_popup(variant='local'):
     image = np.zeros((720, 1280, 3), dtype=np.uint8)
-    title = ExplorationAssets.I_GET_REWARD.image
+    asset = (GlobalGameAssets.I_UI_REWARD if variant == 'local'
+             else GlobalGameAssets.I_UI_REWARD_ALT)
+    title = asset.image
+    x, y = asset.roi_front[:2]
     height, width = title.shape[:2]
-    image[206:206 + height, 514:514 + width] = title
+    image[y:y + height, x:x + width] = title
     return image
 
 
@@ -48,10 +53,11 @@ def test_scene_chest_is_found_at_different_map_positions(chest_crop, position):
     assert y + 69 <= click_y < y + 90
 
 
-def test_reward_popup_is_not_an_unopened_chest():
-    image = reward_popup()
+@pytest.mark.parametrize('variant', ['local', 'upstream'])
+def test_reward_popup_is_not_an_unopened_chest(variant):
+    image = reward_popup(variant)
 
-    assert deepcopy(ExplorationAssets.I_GET_REWARD).match(image)
+    assert deepcopy(GlobalGame.I_UI_REWARD).match(image)
     assert not deepcopy(ExplorationAssets.I_BATTLE_REWARD).match(image)
 
 
@@ -60,7 +66,7 @@ class RewardCollected(Exception):
 
 
 class ExplorationRewardReplay(SoloExploration):
-    def __init__(self, chest_crop):
+    def __init__(self, chest_crop, variant='local'):
         self.explore_init = True
         self.interval_timer = {}
         self.screen = 'chest'
@@ -68,7 +74,7 @@ class ExplorationRewardReplay(SoloExploration):
         self.clicks = []
         self.images = {
             'chest': scene_with_chest(chest_crop),
-            'reward': reward_popup(),
+            'reward': reward_popup(variant),
             'done': np.zeros((720, 1280, 3), dtype=np.uint8),
         }
         self.device = SimpleNamespace(image=self.images[self.screen], click=self.record_click)
@@ -104,9 +110,10 @@ class ExplorationRewardReplay(SoloExploration):
 
 
 @pytest.mark.parametrize('mode', ['run_solo', 'run_leader', 'run_member'])
-def test_all_exploration_modes_open_the_chest_and_collect_rewards(chest_crop, monkeypatch, mode):
+@pytest.mark.parametrize('variant', ['local', 'upstream'])
+def test_all_exploration_modes_open_the_chest_and_collect_rewards(chest_crop, monkeypatch, mode, variant):
     monkeypatch.setattr('tasks.base_task.sleep', lambda _: None)
-    task = ExplorationRewardReplay(chest_crop)
+    task = ExplorationRewardReplay(chest_crop, variant)
 
     with pytest.raises(RewardCollected):
         getattr(task, mode)()

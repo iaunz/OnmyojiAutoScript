@@ -27,12 +27,12 @@ from module.ocr.base_ocr import OcrMode
 
 from tasks.Component.Costume.costume_base import CostumeBase
 from tasks.Component.config_base import Time
-from tasks.GlobalGame.assets import GlobalGameAssets
+from tasks.GlobalGame.global_game import GlobalGame
 from tasks.GlobalGame.config_emergency import FriendInvitation
 
 
 
-class BaseTask(GlobalGameAssets, CostumeBase):
+class BaseTask(GlobalGame, CostumeBase):
     config: Config = None
     device: Device = None
 

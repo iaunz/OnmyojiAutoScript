@@ -25,6 +25,9 @@ class MemoryScrollsAssets:
 	C_MS_SCROLL_6 = RuleClick(roi_front=(838,408,277,185), roi_back=(838,408,277,185), name="ms_scroll_6")
 	# 贡献完成跳结算 
 	C_MS_CONTRIBUTED = RuleClick(roi_front=(108,509,993,190), roi_back=(108,509,993,190), name="ms_contributed")
+	C_MS_MAX_S = RuleClick(roi_front=(1106,116,36,36), roi_back=(1106,116,36,36), name="ms_max_s")
+	C_MS_MAX_M = RuleClick(roi_front=(1106,258,36,36), roi_back=(1106,258,36,36), name="ms_max_m")
+	C_MS_MAX_L = RuleClick(roi_front=(1106,398,36,36), roi_back=(1106,398,36,36), name="ms_max_l")
 	# 双绘卷之二 
 	C_MS_DOUBLE_SCROLLS_2 = RuleClick(roi_front=(714,128,464,397), roi_back=(714,128,464,397), name="ms_double_scrolls_2")
 
@@ -65,5 +68,4 @@ class MemoryScrollsAssets:
 	S_MS_SWIPE_M = RuleSwipe(roi_front=(852,326,37,23), roi_back=(1129,300,47,81), mode="default", name="ms_swipe_m")
 	# 大碎片拉满 
 	S_MS_SWIPE_L = RuleSwipe(roi_front=(854,465,34,25), roi_back=(1131,440,43,77), mode="default", name="ms_swipe_l")
-
 
