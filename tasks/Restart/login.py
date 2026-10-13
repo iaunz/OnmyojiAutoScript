@@ -49,7 +49,7 @@ class LoginHandler(BaseTask, RestartAssets, GameUiAssets, GeneralBuffAssets):
             self._burst()
 
             # 取消继续战斗
-            if self.appear_then_click(self.I_CANCEL_BATTLE, interval=0.8):
+            if self.appear_then_click(self.I_UI_CANCEL_SAMLL, interval=0.8):
                 logger.info('Cancel continue battle')
                 continue
             # 确认进入庭院(优化：先检测加成图标确认在庭院页面，再检测式神录图标)
@@ -82,7 +82,7 @@ class LoginHandler(BaseTask, RestartAssets, GameUiAssets, GeneralBuffAssets):
                 logger.info('Download inbetweening')
                 continue
             # 不观看视频
-            if self.appear_then_click(self.I_WATCH_VIDEO_CANCEL, interval=0.6):
+            if self.appear_then_click(self.I_UI_CANCEL_SAMLL, interval=0.6):
                 logger.info('Close video')
                 continue
             # 右上角的红色的关闭
@@ -97,7 +97,7 @@ class LoginHandler(BaseTask, RestartAssets, GameUiAssets, GeneralBuffAssets):
             if self.appear_then_click(self.I_LOGIN_LOGIN_GOTO_BIND_PHONE):
                 while 1:
                     self.screenshot()
-                    if self.appear_then_click(self.I_LOGIN_LOGIN_CANCEL_BIND_PHONE):
+                    if self.appear_then_click(self.I_UI_CANCEL_SAMLL):
                         logger.info("Close bind phone")
                         break
                 continue
