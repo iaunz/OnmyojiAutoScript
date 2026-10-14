@@ -7,6 +7,7 @@ from module.base import timer
 from tasks.base_task import BaseTask
 from tasks.BondlingFairyland.general_invite import GeneralInvite as BondlingInvite
 from tasks.Component.GeneralInvite.general_invite import GeneralInvite
+from tasks.Component.GeneralInvite.config_invite import InviteConfig, InviteNumber
 
 
 class InviteReplay(BaseTask):
@@ -66,3 +67,28 @@ def test_delayed_invitation_redraw_does_not_repeat_clicks(monkeypatch, invite, c
     assert task.device.image == set()
     expected = [task.I_UI_UNCHECK.name] if checkbox == 'unchecked' else []
     assert task.clicks == [*expected, task.I_UI_CONFIRM.name]
+
+
+@pytest.mark.parametrize('number', [InviteNumber.ONE, InviteNumber.TWO])
+def test_second_friend_is_invited_after_the_first_dialog_settles(monkeypatch, number):
+    now = [0.0]
+    invitations = []
+
+    def sleep(seconds):
+        now[0] += seconds
+
+    def invite_friend(name, find_mode):
+        invitations.append((name, now[0]))
+        return True
+
+    monkeypatch.setattr('tasks.Component.GeneralInvite.general_invite.sleep', sleep)
+    config = InviteConfig(invite_number=number, friend_1='first', friend_2='second')
+    GeneralInvite.invite_friends(SimpleNamespace(invite_friend=invite_friend), config)
+
+    assert invitations[0] == ('first', 0.0)
+    if number == InviteNumber.TWO:
+        assert len(invitations) == 2
+        assert invitations[1][0] == 'second'
+        assert invitations[1][1] >= 3
+    else:
+        assert len(invitations) == 1
