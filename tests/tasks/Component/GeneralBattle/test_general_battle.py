@@ -14,6 +14,34 @@ from tasks.Component.GeneralBattle.config_general_battle import (
 from tasks.OtherWorldTwilight.config import OtherWorldTwilight, OWTBattleConfig
 
 
+def test_buff_panel_closes_before_preparation_starts(monkeypatch):
+    monkeypatch.setattr(battle_module.time, 'sleep', lambda duration: None)
+    task = object.__new__(battle_module.GeneralBattle)
+    events = []
+    panel = [True]
+    task.screenshot = lambda: None
+    task.ui_click = lambda *args, **kwargs: events.append('open')
+    task.appear = lambda asset, **kwargs: asset is task.I_CLOUD and panel[0]
+    task.soul = lambda enable: events.append(('soul', enable))
+
+    def close(asset, **kwargs):
+        assert asset is task.I_BUFF
+        events.append('close')
+        panel[0] = False
+        return True
+
+    def prepare(asset, interval):
+        assert not panel[0]
+        assert asset is task.I_PREPARE_HIGHLIGHT
+        assert interval == 0.8
+        events.append('prepare')
+
+    task.appear_then_click = close
+    task.ui_click_until_disappear = prepare
+    task.check_and_open_buff(battle_module.BuffClass.SOUL)
+    assert events == ['open', ('soul', True), 'close', 'prepare']
+
+
 def test_general_battle_forwards_name_mark_configuration():
     config = OWTBattleConfig(green_enable=True, green_mark_name='缘结神')
     calls = []

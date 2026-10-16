@@ -251,6 +251,9 @@ class ReplayBattle(BattleWait):
         self.events = []
         self.frames = 0
 
+    def appear(self, asset, **kwargs):
+        return False
+
     def screenshot(self):
         self.frames += 1
         assert self.frames < 5, 'battle did not complete'

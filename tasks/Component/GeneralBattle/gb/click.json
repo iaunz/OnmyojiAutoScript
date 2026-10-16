@@ -1,5 +1,11 @@
 [
   {
+    "itemName": "overflow_ghost",
+    "roiFront": "456,381,160,82",
+    "roiBack": "456,381,160,82",
+    "description": "御魂过多的【去清理】按钮，结算随机点击时排除"
+  },
+  {
     "itemName": "preset_team_1",
     "roiFront": "195,235,465,110",
     "roiBack": "195,235,465,110",
