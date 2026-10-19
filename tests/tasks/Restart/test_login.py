@@ -1,4 +1,5 @@
 from types import SimpleNamespace
+from unittest.mock import Mock
 
 import pytest
 
@@ -6,6 +7,38 @@ from module.atom.image import RuleImage
 from module.atom.ocr import RuleOcr
 from module.base import timer
 from tasks.Restart.login import LoginHandler
+from module.exception import GameStuckError
+
+
+def test_desktop_reappearing_login_popup_is_bounded(monkeypatch):
+    task = LoginReplay(monkeypatch, lambda task: task.courtyard())
+    task.device.is_desktop = True
+    task.device.find_desktop_login_popup = lambda: 123
+    task.device.desktop_confirm_login_popup = Mock(return_value=True)
+    with pytest.raises(GameStuckError, match='reappeared'):
+        task._app_handle_login()
+    assert task.device.desktop_confirm_login_popup.call_count == 5
+    assert task.frames == 0
+
+
+def test_desktop_popup_arriving_during_screenshot_is_handled_first(monkeypatch):
+    task = LoginReplay(monkeypatch, lambda task: task.courtyard())
+    task.device.is_desktop = True
+    closed = []
+    task.device.find_desktop_login_popup = lambda: 123 if task.frames and not closed else 0
+    task.device.desktop_confirm_login_popup = lambda: closed.append(task.frames) or True
+    assert task._app_handle_login() is True
+    assert closed == [1]
+
+
+def test_desktop_popup_that_cannot_close_stops_login(monkeypatch):
+    task = LoginReplay(monkeypatch, lambda task: task.courtyard())
+    task.device.is_desktop = True
+    task.device.find_desktop_login_popup = lambda: 123
+    task.device.desktop_confirm_login_popup = lambda: False
+    with pytest.raises(GameStuckError, match='cannot be closed'):
+        task._app_handle_login()
+    assert task.frames == 0
 
 
 class LoginReplay(LoginHandler):
@@ -18,6 +51,7 @@ class LoginReplay(LoginHandler):
         self.clicks = []
         self.next_screen = next_screen
         self.device = SimpleNamespace(
+            is_desktop=False,
             image=set(),
             screenshot=self.take_screenshot,
             click=self.record_click,

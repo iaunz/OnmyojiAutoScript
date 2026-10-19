@@ -83,9 +83,9 @@ class ScriptTask(GameUi, WeeklyTriflesAssets):
             # 等个折叠窗口展开动画
             sleep(1)
             self.screenshot()
-            if self.appear_then_click(self.I_WT_OPEN_FOLD_WINDOW):
+            if self.appear_then_click(self.I_WT_OPEN_FOLD_WINDOW, interval=1):
                 continue
-            if self.appear(self.I_WT_FOLD_WINDOW):
+            if self.appear(self.I_WT_FOLD_WINDOW, interval=1):
                 break
         else:
             raise GameStuckError('Touch fish guild menu did not open')
