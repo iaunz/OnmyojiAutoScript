@@ -425,8 +425,21 @@ class BaseExploration(GameUi, GeneralBattle, GeneralRoom, GeneralInvite, Replace
 
             if self.appear_then_click(self.I_E_EXIT_CONFIRM, interval=0.8):
                 continue
-            if self.appear_then_click(self.I_BACK_YOLLOW, interval=3.5):
-                continue
+            if self.appear(self.I_BACK_YOLLOW):
+                self.screenshot()
+                # 复核截图期间可能出现奖励或退出确认，先交回主循环处理弹窗。
+                if self.appear(self.I_BATTLE_REWARD) or self.appear(self.I_E_EXIT_CONFIRM):
+                    continue
+                # https://github.com/runhey/OnmyojiAutoScript/issues/1935
+                if not self.appear(self.I_BACK_YOLLOW) or self.appear(self.I_E_EXPLORATION_CLICK):
+                    continue
+                is_main = (
+                        self.appear(self.I_E_SETTINGS_BUTTON)
+                        or self.appear(self.I_E_AUTO_ROTATE_ON)
+                        or self.appear(self.I_E_AUTO_ROTATE_OFF)
+                )
+                if is_main and self.click(self.I_BACK_YOLLOW, interval=3.5):
+                    continue
             
             if self.appear(self.I_EXPLORATION_TITLE) or self.appear(self.I_CHECK_EXPLORATION):
                 continue
