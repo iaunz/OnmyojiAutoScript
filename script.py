@@ -323,6 +323,7 @@ class Script:
     def get_next_task(self) -> str:
         """
         获取下一个任务的名字, 大驼峰。
+        仅在当前任务执行结束后调用；防风控收尾在此处执行，不中断正在运行的任务。
         :return:
         """
         while True:
@@ -332,16 +333,17 @@ class Script:
                 self.state_queue.put({"schedule": self.config.get_schedule_data()})
             now = datetime.now()
             antiban_wake = self.anti_ban_guard.wake_time(now, self.config.script.anti_ban)
+            next_run = task.next_run
             if antiban_wake is not None:
-                task.next_run = max(task.next_run, antiban_wake)
+                next_run = max(next_run, antiban_wake)
             if not self._try_acquire_queue_token():
                 del_cached_property(self, "config")
                 continue
             # 任务时间到了返回任务名称
-            if task.next_run <= now:
+            if next_run <= now:
                 return task.command
             # 根据策略执行等待逻辑
-            if not self._handle_wait_during_idle(task.next_run):
+            if not self._handle_wait_during_idle(next_run, anti_ban=antiban_wake is not None):
                 # 若等待被打断, 则刷新配置
                 del_cached_property(self, "config")
 
@@ -397,13 +399,16 @@ class Script:
             if self.instance_guard.try_acquire():
                 return True
 
-    def _handle_wait_during_idle(self, next_run: datetime) -> bool:
+    def _handle_wait_during_idle(self, next_run: datetime, anti_ban: bool = False) -> bool:
         """
         处理任务空闲期间的行为策略
         :param next_run: 下一个任务的时间
+        :param anti_ban: 防风控休息时立即按所选策略收尾，不应用普通空闲的关闭阈值
         :return: True 表示等待成功完成, False 表示等待被中断
         """
         method = self.config.script.optimization.when_task_queue_empty
+        if anti_ban:
+            logger.info(f"Anti-ban rest until {next_run}, cleanup: {method}")
         strategy_map = {
             "close_game": self._wait_close_game,
             "goto_main": self._wait_goto_main,
@@ -411,8 +416,8 @@ class Script:
         func = strategy_map.get(method)
         if func is None:
             logger.warning(f"Invalid Optimization_WhenTaskQueueEmpty: {method}, fallback to stay_there")
-            func = self._wait_stay_there
-        return func(next_run)
+            return self._wait_stay_there(next_run)
+        return func(next_run, anti_ban=anti_ban)
 
     @staticmethod
     def _time_to_timedelta(value) -> timedelta:
@@ -448,8 +453,10 @@ class Script:
             return self.wait_until(next_run)
         return True
 
-    def _wait_close_game(self, next_run: datetime) -> bool:
+    def _wait_close_game(self, next_run: datetime, anti_ban: bool = False) -> bool:
         if self._emulator_down:
+            if anti_ban:
+                return self.wait_until(next_run)
             logger.info("Emulator is down, skip close_game/goto_main action and wait with preheat")
             return self._wait_until_with_emulator_preheat(next_run)
 
@@ -458,7 +465,7 @@ class Script:
         close_emulator_wait_duration = self.config.script.optimization.close_emulator_wait_duration
         close_emulator_wait = self._time_to_timedelta(close_emulator_wait_duration)
 
-        if close_emulator_wait > timedelta(0) and next_run > datetime.now() + close_emulator_wait:
+        if not anti_ban and close_emulator_wait > timedelta(0) and next_run > datetime.now() + close_emulator_wait:
             logger.info("Close emulator during wait")
             self.device.emulator_stop()
             self._emulator_down = True
@@ -469,7 +476,7 @@ class Script:
             self.run("Restart")
             return True
 
-        if close_game_wait <= timedelta(0):
+        if anti_ban or close_game_wait <= timedelta(0):
             logger.info("Close game during wait")
             self.device.app_stop()
             self.device.release_during_wait()
@@ -493,14 +500,16 @@ class Script:
             return False
         return True
 
-    def _wait_goto_main(self, next_run: datetime) -> bool:
+    def _wait_goto_main(self, next_run: datetime, anti_ban: bool = False) -> bool:
         if self._emulator_down:
+            if anti_ban:
+                return self.wait_until(next_run)
             logger.info("Emulator is down, skip goto_main and wait with preheat")
             return self._wait_until_with_emulator_preheat(next_run)
 
         close_emulator_wait_duration = self.config.script.optimization.close_emulator_wait_duration
         close_emulator_wait = self._time_to_timedelta(close_emulator_wait_duration)
-        if close_emulator_wait > timedelta(0) and next_run > datetime.now() + close_emulator_wait:
+        if not anti_ban and close_emulator_wait > timedelta(0) and next_run > datetime.now() + close_emulator_wait:
             logger.info("Close emulator during wait")
             self.device.emulator_stop()
             self._emulator_down = True
@@ -680,7 +689,7 @@ class Script:
             #     logger.info('Server or network is recovered. Restart game client')
             #     self.config.task_call('Restart')
 
-            # Get task
+            # 上一轮 self.run() 已返回，才检查防风控并调度下一个任务。
             task = self.get_next_task()
             # Skip first restart
             if self.is_first_task and task == 'Restart':
