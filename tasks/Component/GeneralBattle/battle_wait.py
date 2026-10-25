@@ -1066,6 +1066,10 @@ class BattleWait(BaseTask, GeneralBattleAssets):
         print('=' * 64)
         time.sleep(0.6)
 
+    def refresh_long_time(self) -> None:
+        self.device.stuck_record_add('BATTLE_STATUS_S')
+        self.device.click_record_clear()
+
     # ------------------------------------------------------------------------------------------------------------------
     # build in
     # ------------------------------------------------------------------------------------------------------------------
@@ -1073,8 +1077,7 @@ class BattleWait(BaseTask, GeneralBattleAssets):
         self.C_REWARD_1.name = 'C_REWARD'
         self.C_REWARD_2.name = 'C_REWARD'
         self.C_REWARD_3.name = 'C_REWARD'
-        self.device.stuck_record_add('BATTLE_STATUS_S')
-        self.device.click_record_clear()
+        self.refresh_long_time()
         logger.info('Start battle process')
         return HookSignal.DONE
 
@@ -1216,6 +1219,7 @@ class BattleWait(BaseTask, GeneralBattleAssets):
         if pri_options.lock_team or self.is_in_real_battle(False):
             logger.info('Prepare stage finish')
             state.done = True
+            self.refresh_long_time()
             return runtime.hook_enabled_update(
                 enable=('green', 'red', 'echo'),
                 disable=('prepare', 'preset'),
@@ -1258,7 +1262,6 @@ class BattleWait(BaseTask, GeneralBattleAssets):
             return HookSignal.CONTINUE
         if not pri_options.preset_enable or state.done:
             return HookSignal.CONTINUE
-
         logger.info("Preset is enable")
         # 点击预设按钮
         while 1:
@@ -1446,6 +1449,7 @@ class BattleWait(BaseTask, GeneralBattleAssets):
             # 点击绿标
             self.device.click(x, y)
         state.done = True
+        self.refresh_long_time()
         return runtime.hook_enabled_update(
             enable=(),
             disable=('green',),
@@ -1489,8 +1493,8 @@ class BattleWait(BaseTask, GeneralBattleAssets):
     # custom
     # ------------------------------------------------------------------------------------------------------------------
     def _bw_success_soul(self, pub: PublicContext, pri: PrivateContext) -> HookSignal:
-        state = pri.per_battle
-        options = pri.options
+        state: PerBattleSuccess = pri.per_battle
+        options: OptionSuccessDefault = pri.options
         if not isinstance(state, PerBattleSuccess) or not isinstance(options, OptionSuccessDefault):
             raise TypeError("battle wait option 'success' must be an OptionSuccessDefault")
         if state.click_stage_1 is None:
@@ -1533,7 +1537,7 @@ class BattleWait(BaseTask, GeneralBattleAssets):
         return HookSignal.CONTINUE
 
     @cached_property
-    def exclude_click_activity(self, areas: list[str] = None) -> RuleClickExclude:
+    def exclude_click_activity(self) -> RuleClickExclude:
         inputs = []
         for area in ['C_END_MESSAGE_RIGHT_TOP', 'C_END_ACTIVITY_REWARD']:
             click = getattr(self, area, None)

@@ -436,6 +436,11 @@ def test_prepare_dismisses_soul_mismatch_dialog_before_progressing(locked):
         def __init__(self):
             self.visible = [self.I_DISABLE_7DAYS_DIFF_SOUL, self.I_CONFIRM_CLOSE_DIFF_SOUL]
             self.clicked = []
+            self.device_events = []
+            self.device = SimpleNamespace(
+                stuck_record_add=lambda name: self.device_events.append(name),
+                click_record_clear=lambda: self.device_events.append('clear'),
+            )
 
         def appear_then_click(self, target, **kwargs):
             if self.visible and target is self.visible[0]:
@@ -453,5 +458,7 @@ def test_prepare_dismisses_soul_mismatch_dialog_before_progressing(locked):
         assert battle._bw_prepare_default() == HookSignal.CONTINUE
         assert runtime.pri_ctx['_bw_prepare_default'].per_battle.done is False
     assert battle.clicked == [battle.I_DISABLE_7DAYS_DIFF_SOUL, battle.I_CONFIRM_CLOSE_DIFF_SOUL]
+    assert battle.device_events == []
     battle._bw_prepare_default()
     assert runtime.pri_ctx['_bw_prepare_default'].per_battle.done is True
+    assert battle.device_events == ['BATTLE_STATUS_S', 'clear']
