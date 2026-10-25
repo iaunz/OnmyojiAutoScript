@@ -181,6 +181,9 @@ class GeneralBattle(BattleWait, GeneralBuff):
         win: bool = False
         while 1:
             self.screenshot()
+            if self.appear(self.I_OVER_GHOST):
+                self.click(self.I_OVER_GHOST)
+                continue
             # 如果出现赢 就点击, 第二个是针对封魔的图片
             if self.appear(self.I_WIN, threshold=0.8) or self.appear(self.I_DE_WIN):
                 logger.info("Battle result is win")
@@ -226,14 +229,23 @@ class GeneralBattle(BattleWait, GeneralBuff):
                 if not self.appear(self.I_FALSE, threshold=0.6):
                     return False
         # 最后保证能点击 获得奖励
-        if not self.wait_until_appear(self.I_REWARD, wait_time=10):
+        while not self.wait_until_appear(self.I_REWARD, wait_time=10):
+            if self.appear(self.I_OVER_GHOST):
+                self.click(self.I_OVER_GHOST)
+                continue
             if not self.appear(self.I_STATISTICS):
                 # 有些的战斗没有下面的奖励，所以直接返回
                 logger.info("There is no reward, Exit battle")
                 return win
+            break
         logger.info("Get reward")
         while 1:
             self.screenshot()
+
+            if self.appear(self.I_OVER_GHOST):
+                self.click(self.I_OVER_GHOST)
+                continue
+
             # 如果出现领奖励
             action_click = random.choice([self.C_REWARD_1, self.C_REWARD_2, self.C_REWARD_3])
             if (self.appear_then_click(self.I_REWARD, action=action_click, interval=1.5) or
@@ -274,6 +286,9 @@ class GeneralBattle(BattleWait, GeneralBuff):
         logger.info("Start battle process")
         while 1:
             self.screenshot()
+            if self.appear(self.I_OVER_GHOST):
+                self.click(self.I_OVER_GHOST)
+                continue
             # 出现赢的鼓，点击直到消失
             if self.appear_then_click(self.I_WIN, interval=0.8):
                 continue
@@ -295,6 +310,10 @@ class GeneralBattle(BattleWait, GeneralBuff):
                 timer = Timer(20).start()
                 while 1:
                     self.screenshot()
+
+                    if self.appear(self.I_OVER_GHOST):
+                        self.click(self.I_OVER_GHOST)
+                        continue
 
                     _appear_ghost, _appear_reward, _appear_gold = (
                         self.appear(self.I_GREED_GHOST, threshold=0.6),

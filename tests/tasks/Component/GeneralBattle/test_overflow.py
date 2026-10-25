@@ -8,6 +8,62 @@ from tasks.Component.GeneralBattle.battle_wait import (
     BattleResult, BattleWait, BattleWaitPlan, HookSignal, OptionSuccessDefault,
     PerBattleSuccess, runtime,
 )
+from tasks.Component.GeneralBattle.general_battle import GeneralBattle
+
+
+@pytest.mark.parametrize('version,phase', [
+    ('legacy', 'entry'), ('legacy', 'wait'), ('legacy', 'settlement'),
+    ('v2', 'entry'), ('v2', 'settlement'),
+])
+def test_legacy_runners_dismiss_overflow_before_finishing(version, phase):
+    class Replay(GeneralBattle):
+        def __init__(self):
+            self.state = 'overflow' if phase == 'entry' else 'reward'
+            self.inject = phase != 'entry'
+            self.frames = 0
+            self.events = []
+            self.device = SimpleNamespace(stuck_record_add=lambda name: None,
+                                          click_record_clear=lambda: None)
+
+        def screenshot(self):
+            self.frames += 1
+            assert self.frames < 20, 'Overflow stalled the battle runner'
+            if version == 'v2' and self.inject and self.frames == 2:
+                self.state = 'overflow'
+                self.inject = False
+
+        def appear(self, asset, **kwargs):
+            return ((asset is self.I_OVER_GHOST and self.state == 'overflow') or
+                    (asset is self.I_REWARD and self.state == 'reward'))
+
+        def wait_until_appear(self, asset, **kwargs):
+            if self.inject:
+                self.state = 'overflow'
+                self.inject = False
+                return phase == 'settlement'
+            return self.state == 'reward'
+
+        def click(self, asset, **kwargs):
+            if asset is self.I_OVER_GHOST:
+                assert self.state == 'overflow'
+                self.events.append('dismiss')
+                self.state = 'reward'
+            else:
+                assert self.state == 'reward', 'Clicked behind overflow popup'
+                self.events.append('reward')
+                self.state = 'done'
+            return True
+
+        def appear_then_click(self, asset, **kwargs):
+            if not self.appear(asset):
+                return False
+            return self.click(asset)
+
+    task = Replay()
+    run = task.battle_wait if version == 'legacy' else task.battle_wait_v2
+    assert run(False) is True
+    assert task.state == 'done'
+    assert task.events == ['dismiss', 'reward']
 
 
 @pytest.mark.parametrize('overflow_on_entry', [False, True])
