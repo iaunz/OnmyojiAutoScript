@@ -39,16 +39,23 @@ def test_start_fight_applies_configured_strategies_and_return_markers(win):
 def test_boss_fight_accepts_either_supported_return_screen(returned_to_filter, win):
     task = object.__new__(ScriptTask)
     task.config = SimpleNamespace(area_boss=SimpleNamespace(boss=SimpleNamespace(reward_floor=AreaBossFloor.DEFAULT)))
-    task.appear = lambda asset: asset is task.I_FILTER and returned_to_filter
+    screen = ['map' if returned_to_filter else 'detail']
+    def appear(asset, **kwargs):
+        if screen[0] == 'map':
+            return asset is task.I_FILTER
+        return asset is task.I_AB_CLOSE_RED or asset is task.I_FIRE
+    task.appear = appear
     task.open_boss_detail = lambda *args: True
     task.is_group_ranked = lambda: False
     task.start_fight = lambda: win
     task.screenshot = lambda: None
     calls = []
-    def wait(asset):
-        assert not returned_to_filter, 'Already back at filter: red close will never appear'
-        calls.append('wait')
-    task.wait_until_appear = wait
-    task.ui_click_until_disappear = lambda *args, **kwargs: calls.append('close')
+    def close(asset, **kwargs):
+        assert asset is task.I_AB_CLOSE_RED and screen[0] == 'detail'
+        calls.append('close')
+        screen[0] = 'map'
+        return True
+    task.appear_then_click = close
     assert task.boss_fight(None, fileter_open=False) is win
-    assert calls == ([] if returned_to_filter else ['wait', 'close'])
+    assert screen[0] == 'map'
+    assert calls == ([] if returned_to_filter else ['close'])

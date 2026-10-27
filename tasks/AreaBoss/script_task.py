@@ -8,6 +8,7 @@ import numpy as np
 import random
 import re
 from module.atom.click import RuleClick
+from module.base.timer import Timer
 from tasks.base_task import BaseTask
 from tasks.Component.GeneralBattle.general_battle import GeneralBattle
 from tasks.Component.GeneralBattle.battle import Battle
@@ -18,7 +19,7 @@ from tasks.Component.SwitchSoul.switch_soul import SwitchSoul
 from tasks.AreaBoss.assets import AreaBossAssets
 from tasks.AreaBoss.config_boss import AreaBossFloor
 from module.logger import logger
-from module.exception import TaskEnd
+from module.exception import GameStuckError, TaskEnd
 from module.atom.image import RuleImage
 from typing import List
 
@@ -94,17 +95,30 @@ class ScriptTask(Battle, GeneralBattle, GameUi, SwitchSoul, AreaBossAssets):
 
     def go_back(self) -> None:
         """
-        返回, 要求这个时候是出现在地域鬼王的主界面
+        从地域鬼王返回主页，处理战后可能重新出现的详情页。
         :return:
         """
         # 点击返回
         logger.info("Script back home")
+        timeout = Timer(20).start()
         while 1:
             self.screenshot()
-            if self.appear_then_click(self.I_UI_BACK_YELLOW, threshold=0.6, interval=2):
+            if timeout.reached():
+                raise GameStuckError("Area boss return home timed out")
+            if self._handle_boss_detail():
                 continue
             if self.appear(self.I_CHECK_MAIN, threshold=0.6):
-                break
+                return
+            self.appear_then_click(self.I_UI_BACK_YELLOW, threshold=0.6, interval=2)
+
+    def _handle_boss_detail(self) -> bool:
+        """True 表示详情页仍遮挡当前帧，包括关闭按钮处于点击冷却时。"""
+        if not self.appear(self.I_AB_CLOSE_RED):
+            return False
+        # 入场动画中红叉可能先出现，等挑战按钮就绪后再关闭。
+        if self.appear(self.I_FIRE):
+            self.appear_then_click(self.I_AB_CLOSE_RED, interval=1)
+        return True
 
     def boss(self, battle: RuleImage, collect: bool = False):
 
@@ -184,12 +198,17 @@ class ScriptTask(Battle, GeneralBattle, GameUi, SwitchSoul, AreaBossAssets):
         if not self.start_fight():
             result = False
             logger.warning("Area Boss Fight Failed ")
-        self.screenshot()
-        if not self.appear(self.I_AB_CLOSE_RED) and self.appear(self.I_FILTER):
-            return result
-        self.wait_until_appear(self.I_AB_CLOSE_RED)
-        self.ui_click_until_disappear(self.I_AB_CLOSE_RED, interval=1)
-        return result
+        timeout = Timer(20).start()
+        while 1:
+            self.screenshot()
+            if timeout.reached():
+                raise GameStuckError("Area boss battle return timed out")
+            if self._handle_boss_detail():
+                continue
+            # 结算和关闭动画后可能直接回地图，不固定等待红叉出现。
+            # 若地图只是过渡帧，后续 open_filter/go_back 会继续处理详情页。
+            if self.appear(self.I_FILTER) or self.appear(self.I_AB_FILTER_OPENED):
+                return result
 
     def start_fight(self) -> bool:
         while 1:
@@ -460,7 +479,16 @@ class ScriptTask(Battle, GeneralBattle, GameUi, SwitchSoul, AreaBossAssets):
     def open_filter(self):
         """打开筛选界面"""
         logger.info("openFilter")
-        self.ui_click(self.I_FILTER, self.I_AB_FILTER_OPENED, interval=3)
+        timeout = Timer(20).start()
+        while 1:
+            self.screenshot()
+            if timeout.reached():
+                raise GameStuckError("Area boss filter did not open")
+            if self._handle_boss_detail():
+                continue
+            if self.appear(self.I_AB_FILTER_OPENED):
+                return
+            self.appear_then_click(self.I_FILTER, interval=3)
 
     def switch_to_collect(self):
         while 1:
