@@ -129,18 +129,8 @@ class CostumeBase:
         asset_before_object.threshold = asset_after.threshold
         asset_before_object.method = asset_after.method
         asset_before_object.file = asset_after.file
-        # Assets are shared across tasks; discard caches from the previous costume.
-        asset_before_object._image = None
-        asset_before_object._kp = None
-        asset_before_object._des = None
-        asset_before_object._match_init = False
-        asset_before_object._mask = None
-        asset_before_object._mask_loaded = False
-        asset_before_object.last_score = -1.0
-        asset_before_object.last_scale = None
-        for name in ('name', 'kp', 'des', 'is_template_match', 'is_sift_flann',
-                     'is_masked_template_match', 'is_multi_scale_template_match'):
-            asset_before_object.__dict__.pop(name, None)
+        # https://github.com/runhey/OnmyojiAutoScript/issues/1972
+        asset_before_object.refresh()
 
     def check_costume_main(self, main_type: MainType):
         if main_type == MainType.COSTUME_MAIN:
