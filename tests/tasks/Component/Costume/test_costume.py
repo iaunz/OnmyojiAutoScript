@@ -9,6 +9,8 @@ from module.atom.image import RuleImage
 from tasks.Component.Costume import costume_base
 from tasks.Component.Costume.assets import CostumeAssets
 from tasks.Component.Costume.config import MainType, BattleSceneType
+from tasks.Component.Costume.config import ShikigamiType
+from tasks.Component.CostumeShikigami.assets import CostumeShikigamiAssets
 from tasks.Component.GeneralBattle.assets import GeneralBattleAssets
 
 
@@ -19,6 +21,26 @@ def screenshot_for(asset):
     screenshot = np.zeros((720, 1280, 3), dtype=np.uint8)
     screenshot[y:y + height, x:x + width] = image
     return screenshot
+
+
+def test_shikigami_13_switch_updates_all_cached_rules():
+    host = costume_base.CostumeBase()
+    before = costume_base.shikigami_costume_model[ShikigamiType.COSTUME_SHIKIGAMI_12]
+    after = costume_base.shikigami_costume_model[ShikigamiType.COSTUME_SHIKIGAMI_13]
+    references = {}
+    for key, name in before.items():
+        rule = deepcopy(getattr(CostumeShikigamiAssets, name))
+        setattr(host, key, rule)
+        references[key] = rule
+        assert rule.match(screenshot_for(rule))
+    host.check_costume_shikigami(ShikigamiType.COSTUME_SHIKIGAMI_13)
+    assert len(after) == 19
+    for key, name in after.items():
+        rule = getattr(host, key)
+        target = getattr(CostumeShikigamiAssets, name)
+        assert rule is references[key]
+        assert rule.file == target.file
+        assert rule.match(screenshot_for(target))
 
 
 @pytest.mark.parametrize('animated_type', [MainType.COSTUME_MAIN_13, MainType.COSTUME_MAIN_17])

@@ -37,7 +37,9 @@ class DesktopDevice:
             if not hwnd:
                 hwnd = find_desktop_window_by_pid(
                     located_pid, desktop_window_titles(self.config))
-            self.desktop_bind_pid(located_pid, hwnd)
+            # 认领的是已存在的窗口，可能是用户手动开的且已登录，
+            # 登录态由 find_desktop_login_popup 实测，不能假设未登录
+            self.desktop_bind_pid(located_pid, hwnd, just_launched=False)
             return True
         return self.launch_desktop_client()
 
@@ -56,6 +58,8 @@ class DesktopDevice:
     def desktop_mark_logged_in(self) -> None:
         """标记客户端已完成登录（Restart 的登录流程成功后调用）。"""
         self._desktop_login_done = True
+        # 首次登录完成后，后续 Restart 必须能重建本会话启动的客户端。
+        self._desktop_just_launched = False
 
     def desktop_mark_logged_out(self) -> None:
         """标记客户端处于未登录态。"""

@@ -11,7 +11,8 @@ from tasks.Restart.script_task import ScriptTask
 def test_restart_reuses_only_a_desktop_client_that_is_not_logged_in(desktop, running):
     calls = []
     task = object.__new__(ScriptTask)
-    task.config = SimpleNamespace(restart=SimpleNamespace(harvest_config=SimpleNamespace(enable_ap=False)))
+    task.config = SimpleNamespace(restart=SimpleNamespace(harvest_config=SimpleNamespace(enable_ap=False)),
+                                  script=SimpleNamespace(desktop=SimpleNamespace(restart_when_window_exists=False)))
     task.device = SimpleNamespace(
         is_desktop=desktop, app_is_running=lambda: running,
         app_stop=lambda: calls.append('stop'),
@@ -28,7 +29,8 @@ def test_restart_reuses_only_a_desktop_client_that_is_not_logged_in(desktop, run
 
 def test_failed_desktop_stop_cannot_report_a_successful_restart():
     task = object.__new__(ScriptTask)
-    task.config = SimpleNamespace(restart=SimpleNamespace(harvest_config=SimpleNamespace(enable_ap=False)))
+    task.config = SimpleNamespace(restart=SimpleNamespace(harvest_config=SimpleNamespace(enable_ap=False)),
+                                  script=SimpleNamespace(desktop=SimpleNamespace(restart_when_window_exists=False)))
     task.device = SimpleNamespace(is_desktop=True, app_is_running=lambda: True,
                                   app_stop=lambda: None, desktop_stop_client=lambda: False)
     task._desktop_start_and_login = Mock()
