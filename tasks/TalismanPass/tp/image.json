@@ -1,5 +1,14 @@
 [
   {
+    "itemName": "task_tab",
+    "imageName": "tp_task_tab.png",
+    "roiFront": "1198,328,36,73",
+    "roiBack": "1185,307,64,117",
+    "method": "Template matching",
+    "threshold": 0.8,
+    "description": "花合战任务页签"
+  },
+  {
     "itemName": "tp_get_all",
     "imageName": "tp_tp_get_all.png",
     "roiFront": "903,599,70,71",

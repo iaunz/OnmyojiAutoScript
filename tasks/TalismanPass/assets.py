@@ -11,6 +11,8 @@ class TalismanPassAssets:
 
 
 	# Image Rule Assets
+	# 花合战任务页签
+	I_TASK_TAB = RuleImage(roi_front=(1198,328,36,73), roi_back=(1185,307,64,117), threshold=0.8, method="Template matching", file="./tasks/TalismanPass/tp/tp_task_tab.png")
 	# 领取全部 
 	I_TP_GET_ALL = RuleImage(roi_front=(903,599,70,71), roi_back=(903,599,70,71), threshold=0.8, method="Template matching", file="./tasks/TalismanPass/tp/tp_tp_get_all.png")
 	# 任务 的右上方红点 

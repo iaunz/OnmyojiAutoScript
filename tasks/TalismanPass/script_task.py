@@ -17,6 +17,7 @@ class ScriptTask(GameUi, TalismanPassAssets):
 
     def run(self):
         self.goto_page(page_daily)
+        self.appear_then_click(self.I_TASK_TAB)
         con: TalismanConfig = self.config.talisman_pass.talisman
 
         # 收取全部奖励
