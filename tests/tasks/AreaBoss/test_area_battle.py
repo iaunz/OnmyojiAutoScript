@@ -59,3 +59,24 @@ def test_boss_fight_accepts_either_supported_return_screen(returned_to_filter, w
     assert task.boss_fight(None, fileter_open=False) is win
     assert screen[0] == 'map'
     assert calls == ([] if returned_to_filter else ['close'])
+
+
+@pytest.mark.parametrize('name,win,should_fight', [
+    ('reward', True, False), ('', True, False),
+    ('next', False, True), ('next', True, True),
+])
+def test_reward_run_only_counts_new_wins(name, win, should_fight):
+    task = object.__new__(ScriptTask)
+    task.config = SimpleNamespace(area_boss=SimpleNamespace(boss=SimpleNamespace(reward_floor=AreaBossFloor.DEFAULT)))
+    task.open_boss_detail = lambda *args: True
+    task.read_boss_name = lambda: name
+    actions = []
+    def start_fight():
+        actions.append('fight')
+        return win
+    task.start_fight = start_fight
+    task._return_from_boss_detail = lambda: actions.append('return')
+    defeated = {'reward'}
+    assert task.boss_fight(None, fileter_open=False, defeated=defeated) is (should_fight and win)
+    assert actions == (['fight', 'return'] if should_fight else ['return'])
+    assert defeated == ({'reward', 'next'} if should_fight and win else {'reward'})
