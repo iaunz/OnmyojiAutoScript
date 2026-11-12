@@ -3,6 +3,7 @@ import pytest
 
 from module.atom import image as image_module
 from module.atom.image import RuleImage
+from module.atom.animate import RuleAnimate
 
 
 @pytest.mark.parametrize('method', ['match', 'match_multi_scale', 'match_all', 'match_all_any'])
@@ -37,3 +38,17 @@ def test_emulator_without_padding_does_not_accept_shifted_template(monkeypatch):
     rule = RuleImage((11, 11, 10, 10), (11, 11, 10, 10), 'Template matching', 0.99, 'unused.png')
     rule._image = pixels
     assert not rule.match(screen)
+
+
+def test_animation_samples_fixed_region_after_a_desktop_match_moves(monkeypatch):
+    monkeypatch.setattr(image_module, 'ROI_MATCH_PAD', 2)
+    roi = (10, 10, 8, 8)
+    rule = RuleAnimate(RuleImage(roi, roi, 'Template matching', 0.99, 'unused.png'))
+    pixels = np.random.default_rng(23).integers(0, 256, (8, 8, 3), dtype=np.uint8)
+    first = np.zeros((32, 32, 3), dtype=np.uint8)
+    first[10:18, 10:18] = pixels
+    shifted = np.roll(first, 2, axis=1)
+    assert not rule.stable(first)
+    assert rule.stable(shifted)
+    assert rule.roi_front[:2] == [12, 10]
+    np.testing.assert_array_equal(rule._last_image, shifted[10:18, 10:18])

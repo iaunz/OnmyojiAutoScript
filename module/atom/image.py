@@ -10,7 +10,7 @@ from pathlib import Path
 from module.atom.RuleImageMallResourceMixin import RuleImageMallResourceMixin
 from module.base.decorator import cached_property, del_cached_property
 from module.logger import logger
-from module.base.utils import is_approx_rectangle
+from module.base.utils import expand_roi, is_approx_rectangle
 from module.base.utils.utils import random_normal_distribution_int
 
 # 模板匹配容差：把搜索区域（roi_back）四边各外扩该像素数，用于吸收非原生渲染
@@ -163,13 +163,7 @@ class RuleImage(RuleImageMallResourceMixin):
         并连带把回算出的 roi_front 算偏；右/下侧越界由切片自然截断。
         返回的 x0/y0 是外扩后的原点，命中回算必须以它做基准。
         """
-        x, y, w, h = [int(v) for v in roi]
-        pad = ROI_MATCH_PAD
-        if pad <= 0:
-            return x, y, w, h
-        x0 = max(0, x - pad)
-        y0 = max(0, y - pad)
-        return x0, y0, x + w + pad - x0, y + h + pad - y0
+        return expand_roi(roi, ROI_MATCH_PAD)
 
     @property
     def mask(self):
@@ -254,7 +248,7 @@ class RuleImage(RuleImageMallResourceMixin):
         :param roi
         :return:
         """
-        x, y, w, h = self._pad_roi(self.roi_back if roi is None else roi)
+        x, y, w, h = self._pad_roi(self.roi_back) if roi is None else roi
         return image[y:y + h, x:x + w]
 
     def match(self, image: np.array, threshold: float = None) -> bool:

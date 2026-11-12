@@ -41,6 +41,8 @@ class RuleAnimate(RuleImage):
 
         if name is not None:
             self._name = name
+        # match() 会更新 roi_front；动画帧比较始终使用初始裁剪区域，避免搜索范围扩大后发生漂移。
+        self._crop_roi = tuple(roi_front)
         self._last_image = None
 
     @property
@@ -55,12 +57,12 @@ class RuleAnimate(RuleImage):
         @return:
         """
         if self._last_image is None:
-            self._last_image = self.corp(image, self.roi_front)
+            self._last_image = self.corp(image, self._crop_roi)
             return False
 
         self._image = self._last_image
         matched = self.match(image)
-        self._last_image = self.corp(image, self.roi_front)
+        self._last_image = self.corp(image, self._crop_roi)
 
         if matched:
             if refresh_after_stable:
