@@ -136,12 +136,11 @@ class SoloExploration(BaseExploration):
             logger.info(f'[run_solo] Current scene: {scene.name}')  # TODO 2026.06.22 之后删掉这个刷屏的
             #
             if scene == Scene.WORLD:
+                if not self.wait_world_stable():
+                    continue
                 self.explore_init = False
                 self._reset_search_state(reset_swipe_cnt=True)
                 self.device.click_record_remove(self.S_SWIPE_BACKGROUND_RIGHT.name)
-                # 打开右边箭头
-                if not self.wait_world_stable():
-                    continue
                 if self.check_exit():
                     break
                 self.open_expect_level()
@@ -210,12 +209,11 @@ class SoloExploration(BaseExploration):
             scene = self.get_current_scene()
             # 探索大世界
             if scene == Scene.WORLD:
+                if not self.wait_world_stable():
+                    continue
                 self.explore_init = False
                 self._reset_search_state(reset_swipe_cnt=True)
                 self.device.click_record_remove(self.S_SWIPE_BACKGROUND_RIGHT.name)
-                # 打开右边箭头
-                if not self.wait_world_stable():
-                    continue
                 if self.check_exit():
                     self.wait_until_stable(self.I_UI_CANCEL, timer=Timer(0.6, 2))
                     if self.appear(self.I_UI_CANCEL):

@@ -2,9 +2,12 @@
 import json
 from pathlib import Path
 import unittest
+from unittest.mock import patch
 
 import numpy as np
+from PIL import Image
 
+from module.atom import image as image_module
 from module.atom.image import RuleImage
 from tasks.GameUi.assets import GameUiAssets
 
@@ -46,6 +49,15 @@ class ExplorationMarkerTests(unittest.TestCase):
 
     def test_blank_frame_does_not_classify_a_map(self):
         self.assertFalse(self.rule().match(np.full((720, 1280, 3), 100, dtype=np.uint8)))
+
+    def test_chapter_roof_is_not_a_world_map_marker(self):
+        # Crop at (1128, 124) from the 2026-11-13 09:23:23 timeout screenshot.
+        with Image.open(Path(__file__).with_name('fixtures') / 'exploration_roof.png') as crop:
+            frame = np.zeros((720, 1280, 3), dtype=np.uint8)
+            frame[124:124 + crop.height, 1128:1128 + crop.width] = np.asarray(crop)
+        for pad in (0, 2):
+            with self.subTest(pad=pad), patch.object(image_module, 'ROI_MATCH_PAD', pad):
+                self.assertFalse(self.rule().match(frame))
 
     def test_generated_asset_keeps_the_source_search_box(self):
         source = self.rule()

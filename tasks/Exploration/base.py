@@ -67,22 +67,31 @@ class BaseExploration(GameUi, GeneralBattle, GeneralRoom, GeneralInvite, Replace
         logger.info(f'Swipe end area diff: {diff:.2f}')
         return diff <= threshold
 
+    def _in_chapter(self) -> bool:
+        return (self.appear(self.I_E_SETTINGS_BUTTON)
+                or self.appear(self.I_E_AUTO_ROTATE_ON)
+                or self.appear(self.I_E_AUTO_ROTATE_OFF))
+
     def get_current_scene(self, reuse_screenshot: bool = True) -> Scene:
         if not reuse_screenshot:
             self.screenshot()
 
-        if self.appear(self.I_CHECK_EXPLORATION) and not self.appear(self.I_E_SETTINGS_BUTTON):
-            return Scene.WORLD
-        elif self.appear(self.I_E_EXPLORATION_CLICK):
+        # 结算过渡时章节背景可能命中大地图标识，优先看同一帧的入口和章节控件。
+        if self.appear(self.I_E_EXPLORATION_CLICK):
             return Scene.ENTRANCE
-        elif self.appear(self.I_E_SETTINGS_BUTTON) or self.appear(self.I_E_AUTO_ROTATE_ON) or self.appear(self.I_E_AUTO_ROTATE_OFF):
+        elif self._in_chapter():
             return Scene.MAIN
-        elif self.is_in_prepare():
+        elif self.appear(self.I_CHECK_EXPLORATION):
+            return Scene.WORLD
+        elif self.is_in_prepare(is_screenshot=False):
             return Scene.BATTLE_PREPARE
-        elif self.is_in_battle():
+        elif self.is_in_battle(is_screenshot=False):
             return Scene.BATTLE_FIGHTING
-        elif self.is_in_room() or self.appear(self.I_CREATE_ENSURE):
+        elif self.is_in_room(is_screenshot=False) or self.appear(self.I_CREATE_ENSURE):
             return Scene.TEAM
+        # 收起章节列表时，大地图标识可能随面板隐藏。仅在没有其他场景控件时使用箭头。
+        elif self.appear(self.I_EXP_ARROW_LEFT):
+            return Scene.WORLD
 
         logger.info("Unknown scene")
         return Scene.UNKNOWN
@@ -408,7 +417,7 @@ class BaseExploration(GameUi, GeneralBattle, GeneralRoom, GeneralInvite, Replace
             if self.appear(self.I_UI_BACK_YELLOW) and self.appear(self.I_E_EXPLORATION_CLICK):
                 break
             # 探索大世界界面
-            if self.appear(self.I_CHECK_EXPLORATION) and not self.appear(self.I_E_SETTINGS_BUTTON):
+            if self.appear(self.I_CHECK_EXPLORATION) and not self._in_chapter():
                 break
   
             # 防止BOSS打完箱子刚落地，脚本就手快点退出了
@@ -433,12 +442,7 @@ class BaseExploration(GameUi, GeneralBattle, GeneralRoom, GeneralInvite, Replace
                 # https://github.com/runhey/OnmyojiAutoScript/issues/1935
                 if not self.appear(self.I_BACK_YOLLOW) or self.appear(self.I_E_EXPLORATION_CLICK):
                     continue
-                is_main = (
-                        self.appear(self.I_E_SETTINGS_BUTTON)
-                        or self.appear(self.I_E_AUTO_ROTATE_ON)
-                        or self.appear(self.I_E_AUTO_ROTATE_OFF)
-                )
-                if is_main and self.click(self.I_BACK_YOLLOW, interval=3.5):
+                if self._in_chapter() and self.click(self.I_BACK_YOLLOW, interval=3.5):
                     continue
             
             if self.appear(self.I_EXPLORATION_TITLE) or self.appear(self.I_CHECK_EXPLORATION):
@@ -454,9 +458,7 @@ class BaseExploration(GameUi, GeneralBattle, GeneralRoom, GeneralInvite, Replace
     def fire(self, button) -> bool:
         self.ui_click_until_disappear(button, interval=3)
         self.screenshot()
-        if (self.appear(self.I_E_SETTINGS_BUTTON) or
-                self.appear(self.I_E_AUTO_ROTATE_ON) or
-                self.appear(self.I_E_AUTO_ROTATE_OFF)):
+        if self._in_chapter():
             # 如果还在探索说明，这个是显示滑动导致挑战按钮不在范围内
             logger.warning('Fire button disappear, but still in exploration')
             return False
@@ -465,20 +467,13 @@ class BaseExploration(GameUi, GeneralBattle, GeneralRoom, GeneralInvite, Replace
         return True
 
     def wait_world_stable(self) -> bool:
-        """
-        # 打开右边箭头 and https://github.com/runhey/OnmyojiAutoScript/pull/1589/
-        https://github.com/runhey/OnmyojiAutoScript/issues/1588
-        @return:
-        """
-        while 1:
-            scene = self.get_current_scene(reuse_screenshot=False)
-            if scene == Scene.WORLD and self.appear(self.I_EXP_ARROW_RIGHT):
-                return True
-            if scene == Scene.ENTRANCE:
-                logger.warning('World scene unstable, possibly transient frame after paper doll collection')
-                return False
-            if self.appear_then_click(self.I_EXP_ARROW_LEFT, interval=2):
-                continue
+        """用新截图确认章节列表已展开；切场或展开后交回主循环重新判断。"""
+        if self.get_current_scene(reuse_screenshot=False) != Scene.WORLD:
+            return False
+        if self.appear(self.I_EXP_ARROW_RIGHT):
+            return True
+        self.appear_then_click(self.I_EXP_ARROW_LEFT, interval=2)
+        return False
 
 
 if __name__ == "__main__":
