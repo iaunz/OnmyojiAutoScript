@@ -264,15 +264,23 @@ class ScriptTask(GameUi, CollectiveMissionsAssets):
         logger.info('Swipe to the most matter')
         # 还有一点很重要的，捐赠会有双倍的，需要领两次
         reward_number = 0
+        check_timer = Timer(5)
+        check_timer.start()
         while 1:
             self.screenshot()
 
             if reward_number >= 2:
                 break
+            if check_timer.reached():
+                logger.warning('Donate timeout')
+                break
             if self.ui_reward_appear_click(False):
+                check_timer.reset()
                 reward_number += 1
                 continue
-            if self.appear_then_click(self.I_CM_PRESENT, interval=1):
+            if self.appear_then_click(self.I_CM_PRESENT, interval=1)\
+                    or self.appear_then_click(self.I_CM_REWARDS, interval=0.5):
+                check_timer.reset()
                 continue
         self.ui_reward_appear_click(True)
         logger.info('Donate finished')
@@ -308,6 +316,8 @@ class ScriptTask(GameUi, CollectiveMissionsAssets):
             if self.appear_then_click(self.I_CM_SWITCH, interval=2):
                 logger.info(f"尝试切换任务")
                 click_cnt += 1
+                if click_cnt % 8 == 0:
+                    self.device.click_record_clear()
 
 
 
