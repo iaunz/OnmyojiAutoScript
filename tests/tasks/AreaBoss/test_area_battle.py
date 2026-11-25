@@ -2,6 +2,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from module.base import timer
 from tasks.AreaBoss.script_task import ScriptTask
 from tasks.AreaBoss.config_boss import AreaBossFloor
 from tasks.Component.GeneralBattle.config_general_battle import GeneralBattleConfig
@@ -24,7 +25,9 @@ def test_start_fight_applies_configured_strategies_and_return_markers(win):
         assert plan is not None
         assert all(getattr(plan, key) == value for key, value in strategies.items())
         active = battle_wait_options._context.get()
-        assert active['completion'].check_imgs == [task.I_FIRE, task.I_FILTER]
+        assert active['completion'].check_imgs == [
+            task.I_FIRE, task.I_FILTER, task.I_AB_CLOSE_RED, task.I_AB_FILTER_OPENED,
+        ]
         seen.append(True)
         return win
     task.battle_wait = battle
@@ -36,7 +39,7 @@ def test_start_fight_applies_configured_strategies_and_return_markers(win):
 
 @pytest.mark.parametrize('returned_to_filter', [True, False])
 @pytest.mark.parametrize('win', [True, False])
-def test_boss_fight_accepts_either_supported_return_screen(returned_to_filter, win):
+def test_boss_fight_accepts_either_supported_return_screen(monkeypatch, returned_to_filter, win):
     task = object.__new__(ScriptTask)
     task.config = SimpleNamespace(area_boss=SimpleNamespace(boss=SimpleNamespace(reward_floor=AreaBossFloor.DEFAULT)))
     screen = ['map' if returned_to_filter else 'detail']
@@ -45,10 +48,15 @@ def test_boss_fight_accepts_either_supported_return_screen(returned_to_filter, w
             return asset is task.I_FILTER
         return asset is task.I_AB_CLOSE_RED or asset is task.I_FIRE
     task.appear = appear
-    task.open_boss_detail = lambda *args: True
+    task.open_boss_detail = lambda *args, **kwargs: True
     task.is_group_ranked = lambda: False
     task.start_fight = lambda: win
-    task.screenshot = lambda: None
+    now = 100.0
+    def screenshot():
+        nonlocal now
+        now += 0.25
+    task.screenshot = screenshot
+    monkeypatch.setattr(timer, 'time', SimpleNamespace(time=lambda: now))
     calls = []
     def close(asset, **kwargs):
         assert asset is task.I_AB_CLOSE_RED and screen[0] == 'detail'
@@ -68,7 +76,7 @@ def test_boss_fight_accepts_either_supported_return_screen(returned_to_filter, w
 def test_reward_run_only_counts_new_wins(name, win, should_fight):
     task = object.__new__(ScriptTask)
     task.config = SimpleNamespace(area_boss=SimpleNamespace(boss=SimpleNamespace(reward_floor=AreaBossFloor.DEFAULT)))
-    task.open_boss_detail = lambda *args: True
+    task.open_boss_detail = lambda *args, **kwargs: True
     task.read_boss_name = lambda: name
     actions = []
     def start_fight():

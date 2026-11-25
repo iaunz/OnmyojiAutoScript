@@ -109,8 +109,8 @@ class ScriptTask(Battle, GeneralBattle, GameUi, SwitchSoul, AreaBossAssets):
         """True 表示详情页仍遮挡当前帧，包括关闭按钮处于点击冷却时。"""
         if not self.appear(self.I_AB_CLOSE_RED):
             return False
-        # 入场动画中红叉可能先出现，等挑战按钮就绪后再关闭。
-        if self.appear(self.I_FIRE):
+        # 入场动画中可能只有红叉。筛选列表盖住挑战按钮时也可以点击红叉。
+        if self.appear(self.I_FIRE) or self.appear(self.I_AB_FILTER_OPENED):
             self.appear_then_click(self.I_AB_CLOSE_RED, interval=1)
         return True
 
@@ -162,10 +162,8 @@ class ScriptTask(Battle, GeneralBattle, GameUi, SwitchSoul, AreaBossAssets):
         @rtype:
         """
         reward_floor = self.config.area_boss.boss.reward_floor
-        if fileter_open and not self.appear(self.I_AB_FILTER_OPENED):
-            self.open_filter()
         # 如果打不开鬼王详情界面,直接退出
-        if not self.open_boss_detail(battle, 3):
+        if not self.open_boss_detail(battle, select_from_filter=fileter_open):
             return False
 
         if defeated is not None:
@@ -200,15 +198,17 @@ class ScriptTask(Battle, GeneralBattle, GameUi, SwitchSoul, AreaBossAssets):
 
     def _return_from_boss_detail(self):
         timeout = Timer(20).start()
+        map_stable = Timer(1.5, count=2)
         while 1:
             self.screenshot()
             if timeout.reached():
                 raise GameStuckError("Area boss battle return timed out")
-            if self._handle_boss_detail():
+            # 结算或关闭动画可能短暂露出地图，等地图或筛选列表持续可见再选下一只。
+            if self._handle_boss_detail() or not (
+                    self.appear(self.I_FILTER) or self.appear(self.I_AB_FILTER_OPENED)):
+                map_stable.clear()
                 continue
-            # 结算和关闭动画后可能直接回地图，不固定等待红叉出现。
-            # 若地图只是过渡帧，后续 open_filter/go_back 会继续处理详情页。
-            if self.appear(self.I_FILTER) or self.appear(self.I_AB_FILTER_OPENED):
+            if map_stable.start().reached():
                 return
 
     def start_fight(self) -> bool:
@@ -219,7 +219,9 @@ class ScriptTask(Battle, GeneralBattle, GameUi, SwitchSoul, AreaBossAssets):
             if not self.appear(self.I_AB_CLOSE_RED):  # 如果这个红色的关闭不见了才可以进行继续
                 break
         strategies, options = self.loadout_from_config(self.config.area_boss.general_battle)
-        options['completion'].check_imgs = [self.I_FIRE, self.I_FILTER]
+        options['completion'].check_imgs = [
+            self.I_FIRE, self.I_FILTER, self.I_AB_CLOSE_RED, self.I_AB_FILTER_OPENED,
+        ]
         self.loadout_show((strategies, options))  # 使用的是默认的策略： strategies
         with battle_wait_strategy(**strategies), battle_wait_options(**options):
             win = self.battle_wait()
@@ -454,32 +456,33 @@ class ScriptTask(Battle, GeneralBattle, GameUi, SwitchSoul, AreaBossAssets):
                 return name
         return ''
 
-    def open_boss_detail(self, battle: RuleImage, try_num: int = 3) -> bool:
-        """
-            打开鬼王详情界面
-        @param battle:
-        @type battle:
-        @param try_num: 重试次数
-        @type try_num:
-        @return:    True        打开成功
-                    False       打开失败
-        @rtype:
-        """
+    def open_boss_detail(self, battle: RuleImage | RuleClick, try_num: int = 3, *,
+                         select_from_filter: bool = False) -> bool:
+        """从列表选择鬼王。检查悬赏时可以继续使用已打开的目标详情。"""
         try_count = 0
-        while 1:
-            self.screenshot()
-            if self.appear(self.I_AB_CLOSE_RED) and self.appear(self.I_FIRE):
-                self.screenshot()
-                if not self.appear(self.I_FIRE):
-                    continue
-                return True
-            if try_count >= try_num:
-                logger.warning(f"Cannot boss_detail, try {try_count} times")
-                return False
-            if self.click(battle, interval=3):
+        retry = Timer(3)
+        timeout = Timer(20).start()
+        while not timeout.reached():
+            if select_from_filter:
+                if try_count >= try_num:
+                    break
+                self.open_filter()
+                self.click(battle)
                 try_count += 1
+                retry.reset()
+                select_from_filter = False
+
+            self.screenshot()
+            if self.appear(self.I_AB_FILTER_OPENED) or not self.appear(self.I_AB_CLOSE_RED):
+                # 选中目标后，等列表收起和详情展开，再决定是否重试。
+                select_from_filter = retry.reached()
                 continue
-        return True
+            if self.appear(self.I_FIRE):
+                self.screenshot()
+                if self.appear(self.I_FIRE) and not self.appear(self.I_AB_FILTER_OPENED):
+                    return True
+        logger.warning(f"Cannot open boss detail after {try_count} attempts")
+        return False
 
     def is_group_ranked(self):
         """
