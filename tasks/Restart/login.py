@@ -6,6 +6,7 @@ from module.base.timer import Timer
 from module.exception import RequestHumanTakeover, GameTooManyClickError, GameStuckError
 from module.logger import logger
 from tasks.Restart.assets import RestartAssets
+from tasks.Restart.login_screen import LOGIN_SCREEN
 from tasks.GameUi.assets import GameUiAssets
 from tasks.Component.GeneralBuff.assets import GeneralBuffAssets
 from tasks.base_task import BaseTask
@@ -159,16 +160,14 @@ class LoginHandler(BaseTask, RestartAssets, GameUiAssets, GeneralBuffAssets):
                 logger.warning('Appear create account')
                 raise GameStuckError('Appear create account')
 
-            # 点击“进入游戏”速度过快会进入区服设置，同时需在检测I_LOGIN_8之前检测，因为新服图标会让I_LOGIN_8向右偏移导致永远无法检测成功
-            # 同时修复了点击位置（之前是点击I_CHARACTARS而不是左边的区域）
+            # 先退出区服设置，再在下一帧识别「进入游戏」。
             if self.appear(self.I_CHARACTARS, interval=1):
                 logger.info('误入区服设置')
                 # https://github.com/runhey/OnmyojiAutoScript/issues/585
                 self.device.click(x=106, y=535)
                 continue
                 
-            # 点击’进入游戏‘
-            if not self.appear(self.I_LOGIN_8):
+            if not LOGIN_SCREEN.evaluate(self):
                 continue
             
             # 登录体验服时，点击“进入游戏”速度过快，可能会出现体验服的弹窗

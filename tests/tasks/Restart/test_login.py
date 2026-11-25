@@ -121,6 +121,24 @@ def test_direct_courtyard_entry_does_not_wait_for_character_selection(monkeypatc
     assert task.now - task.clicks[0][2] < 3
 
 
+def test_16_plus_login_clicks_only_when_the_button_is_visible(monkeypatch):
+    def next_screen(task):
+        if task.clicks:
+            return task.courtyard()
+        if task.frames == 1:
+            return [task.O_LOGIN_ENTER_GAME_ORIGIN]
+        if task.frames == 2:
+            return [task.I_LOGIN_16]
+        return [task.I_LOGIN_16, task.O_LOGIN_ENTER_GAME_ORIGIN]
+
+    task = LoginReplay(monkeypatch, next_screen)
+
+    assert task._app_handle_login() is True
+    assert [(name, frame) for name, frame, _ in task.clicks] == [
+        (task.O_LOGIN_ENTER_GAME_ORIGIN.name, 3),
+    ]
+
+
 def test_character_selection_is_handled_after_enter_game(monkeypatch):
     def next_screen(task):
         clicked = [click[0] for click in task.clicks]

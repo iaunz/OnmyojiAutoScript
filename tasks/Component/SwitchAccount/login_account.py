@@ -9,6 +9,7 @@ from module.atom.ocr import RuleOcr
 from module.logger import logger
 from tasks.Component.SwitchAccount.assets import SwitchAccountAssets
 from tasks.Component.SwitchAccount.switch_account_config import AccountInfo
+from tasks.Restart.login_screen import LOGIN_SCREEN
 from tasks.base_task import BaseTask
 
 
@@ -153,7 +154,7 @@ class LoginAccount(BaseTask, SwitchAccountAssets):
                 return
             if self.appear_then_click(self.I_SA_SWITCH_ACCOUNT_BTN, interval=1.5):
                 continue
-            if self.appear(self.I_CHECK_LOGIN_FORM):
+            if LOGIN_SCREEN.evaluate(self):
                 self.click(self.C_SA_LOGIN_FORM_USER_CENTER, 1.5)
                 continue
         return
@@ -236,7 +237,7 @@ class LoginAccount(BaseTask, SwitchAccountAssets):
         """
         self.screenshot()
         #
-        if not (self.appear(self.I_CHECK_LOGIN_FORM) or self.appear(self.I_SA_NETEASE_GAME_LOGO)):
+        if not (LOGIN_SCREEN.evaluate(self) or self.appear(self.I_SA_NETEASE_GAME_LOGO)):
             logger.error("Unknown Page,%s %s Login Failed", accountInfo.character, accountInfo.svr)
             return False
 

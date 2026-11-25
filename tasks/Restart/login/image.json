@@ -54,6 +54,15 @@
     "description": "用于判断是否出现登录选区的"
   },
   {
+    "itemName": "login_16",
+    "imageName": "login_login_16.png",
+    "roiFront": "13,564,53,70",
+    "roiBack": "1,547,241,105",
+    "method": "Template matching",
+    "threshold": 0.8,
+    "description": "登录页左下角的 16+ 适龄提示"
+  },
+  {
     "itemName": "login_specific_serve",
     "imageName": "login_login_specific_serve.png",
     "roiFront": "0,0,120,120",

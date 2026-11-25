@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from tasks.ActivityShikigami.assets import ActivityShikigamiAssets
 from tasks.Component.GeneralInvite.assets import GeneralInviteAssets
-from tasks.Component.SwitchAccount.assets import SwitchAccountAssets
 from tasks.Exploration.assets import ExplorationAssets
 from tasks.GameUi.action import conditional_action, sequence
 from tasks.Pets.assets import PetsAssets
@@ -21,6 +20,7 @@ from tasks.GameUi.matcher import any_of, all_of
 from tasks.GameUi.page_definition import Page
 from tasks.KekkaiUtilize.assets import KekkaiUtilizeAssets
 from tasks.Restart.assets import RestartAssets
+from tasks.Restart.login_screen import LOGIN_SCREEN
 from tasks.RyouToppa.assets import RyouToppaAssets
 from tasks.WeeklyTrifles.assets import WeeklyTriflesAssets
 
@@ -56,7 +56,7 @@ def handle_login_page(task) -> bool:
 
 
 # 登录页。
-page_login = Page(SwitchAccountAssets.I_CHECK_LOGIN_FORM, category="global")
+page_login = Page(LOGIN_SCREEN, category="global")
 page_login.add_enter_success_hooks(handle_login_page)
 
 # 庭院主页(此处通过提高阈值来处理部分探索章节会识别成原始庭院的问题, 后续有其他更好方法需改善)
