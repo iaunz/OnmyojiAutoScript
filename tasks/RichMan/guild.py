@@ -94,13 +94,12 @@ class Guild(Buy, GameUi, RichManAssets):
                 time.sleep(1)
                 continue
             # 连续多次滑动都没有买到东西, 防止无限滑动触发点击保护
-            swipe_no_progress += 1
             if swipe_no_progress >= 8:
                 logger.warning(f'Swipe {swipe_no_progress} times without buying, stop guild store')
                 break
-            if self.swipe(self.S_GUILD_STORE, interval=1.5):
-                time.sleep(2)
-                continue
+            self.swipe(self.S_GUILD_STORE)
+            swipe_no_progress += 1
+            time.sleep(2)
 
 
         # 回去

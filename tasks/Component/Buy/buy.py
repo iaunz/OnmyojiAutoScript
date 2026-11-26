@@ -115,13 +115,12 @@ class Buy(BaseTask, BuyAssets):
         else:
             # 四次截图数字都一样，就可以退出了
             number_record = []
+            add_click_count = 0
+            clear_add_click_record = number > 10
             ocr_timer = Timer(0.8)
             ocr_timer.start()
             while 1:
                 self.screenshot()
-
-                if self.appear_then_click(self.I_BUY_ADD, interval=0.8):
-                    continue
 
                 if not ocr_timer.reached():
                     continue
@@ -136,6 +135,12 @@ class Buy(BaseTask, BuyAssets):
                     if number_record[0] == number_record[1] == number_record[2] == number_record[3]:
                         break
                     number_record.pop(0)
+                if current > 0 and self.appear_then_click(self.I_BUY_ADD, interval=0.8):
+                    add_click_count += 1
+                    if clear_add_click_record and add_click_count % 7 == 0:
+                        self.device.click_record_remove(self.I_BUY_ADD)
+                    if add_click_count >= number - 1:
+                        break
 
         # 购买确认
         while 1:
@@ -186,7 +191,7 @@ class Buy(BaseTask, BuyAssets):
                 if max_price is not None:
                     return self._buy_with_price(start_click, check_image, True, max_price, money, remain)
                 if number == 1:
-                    # buy_more 指定数量时会先点一次加号再 OCR, 买 1 个会变成买 2 个
+                    # 只买一个时直接验证默认数量
                     return self._buy_more_default(start_click)
                 logger.info('Buy window with number selector, use buy_more')
                 return self.buy_more(start_click, number)
@@ -242,7 +247,7 @@ class Buy(BaseTask, BuyAssets):
             return self._buy_more_default(start_click)
         if number == remain:
             return self.buy_more(start_click, None)
-        # buy_more(start_click, number) 点加号后才读数量, 可能超过 number.
+        # 余额不足以买满时，逐次校验默认数量。
         # 余额不够买满时每次只买 1 个, 调用方循环会重新读余额和剩余次数再买下一个
         logger.info(f'Money is not enough to buy all {remain}, buy one by one')
         return self._buy_more_default(start_click)
